@@ -221,14 +221,23 @@ export default function Vitrin() {
   }, []);
 
   // İlanlar arası otomatik dönüş — SADECE "ilan" modundayken çalışır.
-  // YENİ: Her ILAN_ARASI_REKLAM_SIKLIGI ilanda bir reklam arası açılması
-  // gerekiyorsa, ilan indeksini İLERLETMEDEN "gecis" moduna geçiyoruz —
-  // böylece reklam/geçiş bitip "ilan" moduna dönüldüğünde bir sonraki tur
-  // aynı ilandan bir sonrakine geçiyor, yani ilanlar KALDIĞI YERDEN devam
-  // ediyor (baştan başlamıyor).
+  // GÜNCELLEME: Süre artık SABİT değil, ilana göre DİNAMİK hesaplanıyor —
+  // fotoğrafı çok olan bir ilanda (örn. 6 foto × 5sn = 30sn) hepsi bitmeden
+  // bir sonraki ilana geçilmiyordu, bu yüzden setInterval yerine her ilanın
+  // kendi süresine göre yeniden kurulan bir setTimeout kullanıyoruz.
+  // Video reklamı YENİ: Her ILAN_ARASI_REKLAM_SIKLIGI ilanda bir reklam arası
+  // açılması gerekiyorsa, ilan indeksini İLERLETMEDEN "gecis" moduna
+  // geçiyoruz — böylece reklam/geçiş bitip "ilan" moduna dönüldüğünde bir
+  // sonraki tur aynı ilandan bir sonrakine geçiyor, yani ilanlar KALDIĞI
+  // YERDEN devam ediyor (baştan başlamıyor).
   useEffect(() => {
     if (ilanlar.length < 2 || mod !== "ilan") return;
-    const donus = setInterval(() => {
+    const suGuncel = ilanlar[index];
+    if (!suGuncel) return;
+    const sure = suGuncel.videoUrl
+      ? ROTASYON_SURESI_MS
+      : Math.max(ROTASYON_SURESI_MS, Math.max(suGuncel.fotograflar.length, 1) * FOTO_ROTASYON_MS);
+    const zamanlayici = setTimeout(() => {
       gosterilenIlanSayaciRef.current += 1;
       if (
         reklamlar.length > 0 &&
@@ -238,9 +247,9 @@ export default function Vitrin() {
         return;
       }
       setIndex((onceki) => (onceki + 1) % ilanlar.length);
-    }, ROTASYON_SURESI_MS);
-    return () => clearInterval(donus);
-  }, [ilanlar.length, mod, reklamlar.length]);
+    }, sure);
+    return () => clearTimeout(zamanlayici);
+  }, [ilanlar, index, mod, reklamlar.length]);
 
   // YENİ: Geçiş videosu — kendi süresinde biterse <video onEnded> ile
   // "reklam" moduna geçiyoruz; video herhangi bir sebeple bitmezse/oynamazsa
@@ -460,9 +469,9 @@ export default function Vitrin() {
                   key={youtubeId}
                   className="absolute top-1/2 left-1/2 w-[178%] h-[178%] -translate-x-1/2 -translate-y-1/2"
                   style={{ pointerEvents: "none", border: 0 }}
-                  src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`}
+                  src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&playsinline=1&fs=0`}
                   title={guncel.baslik}
-                  allow="autoplay; encrypted-media"
+                  allow="autoplay; encrypted-media; picture-in-picture"
                 />
               </div>
             ) : guncel.videoUrl && !videoHata ? (
