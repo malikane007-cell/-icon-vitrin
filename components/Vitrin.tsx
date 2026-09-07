@@ -13,6 +13,12 @@ const YORUM_YENIDEN_CEKME_MS = 30 * 60 * 1000; // Google yorumu tazeleme sıklı
 const REKLAM_YENIDEN_CEKME_MS = 5 * 60 * 1000; // ayarlar/yorumlar/reklamlar tazeleme sıklığı
 
 // YENİ: Reklam arası akışı ayarları.
+// Video ilanların (YouTube) ve video reklamların sabit gösterim süresi.
+// Fotoğraf ilanlarında süre fotoğraf sayısına göre dinamik hesaplanıyor
+// (bkz. aşağıdaki useEffect), ama video için gerçek video uzunluğunu
+// (YouTube API anahtarı olmadan) bilemediğimizden, çoğu kısa emlak
+// tanıtım videosunu kapsayacak kadar cömert sabit bir süre kullanıyoruz.
+const VIDEO_GOSTERIM_SURESI_MS = 45000;
 const ILAN_ARASI_REKLAM_SIKLIGI = 10; // her N ilan gösteriminden sonra bir reklam arası açılır
 const GECIS_VIDEOSU_AZAMI_SURE_MS = 15000; // geçiş videosu bir şekilde bitmezse/oynamazsa yine de devam et
 
@@ -235,7 +241,7 @@ export default function Vitrin() {
     const suGuncel = ilanlar[index];
     if (!suGuncel) return;
     const sure = suGuncel.videoUrl
-      ? ROTASYON_SURESI_MS
+      ? VIDEO_GOSTERIM_SURESI_MS
       : Math.max(ROTASYON_SURESI_MS, Math.max(suGuncel.fotograflar.length, 1) * FOTO_ROTASYON_MS);
     const zamanlayici = setTimeout(() => {
       gosterilenIlanSayaciRef.current += 1;
@@ -608,12 +614,17 @@ export default function Vitrin() {
                 }}
               />
             ) : (
+              // Reklam GÖRSELLERİ object-contain ile gösteriliyor — object-cover
+              // kullanılsaydı, reklam görselinin oranı ekran oranından farklıysa
+              // üst/alt kısımları (ör. logo, "1 ay ücretsiz" etiketi) kırpılıp
+              // ekrandan taşıyormuş gibi görünüyordu. object-contain görselin
+              // TAMAMINI (gerekirse yanlarda/üstte-altta boşluk bırakarak) gösterir.
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={guncelReklam.id}
                 src={guncelReklam.medya_url}
                 alt="Reklam"
-                className="w-full h-full object-cover block"
+                className="w-full h-full object-contain block"
               />
             )
           )}
