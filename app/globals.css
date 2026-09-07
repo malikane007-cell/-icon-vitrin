@@ -20,13 +20,7 @@ html, body {
 
 /* Kayan yazı (marquee) — metin JSX'te İKİ KEZ art arda yazdırılıyor
    (aynı satırda, aralarında boşluk ile), bu kutu da o iki kopyayı
-   translateX(0) -> translateX(-50%) arasında kaydırıyor. -50%, kopyaların
-   TOPLAM genişliğinin yarısı yani TEK bir kopyanın genişliği demek — birinci
-   kopya tam olarak ekrandan çıktığı anda ikinci kopya birincinin başladığı
-   yerde bulunuyor, böylece döngü hiç boşluk/kesinti olmadan kusursuz devam
-   ediyor. Eski yöntemde (translateX 100% -> -100%, tek kopya) kısa metinler
-   çoğu zaman görünmez alanda geziniyordu; metin ekrana "ara ara gelip
-   kayboluyormuş" gibi görünüyordu — artık metin HER an ekranda. */
+   translateX(0) -> translateX(-50%) arasında kaydırıyor. */
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -43,8 +37,10 @@ html, body {
   animation: fadeIn 0.6s ease-in;
 }
 
-/* "Altın" sarı (amber-400) rengindeki yazı ve kutucuklara canlı, parlayan bir
-   görünüm katmak için — TV ekranında daha "ışıltılı"/premium dursun diye. */
+/* GÜNCELLEME: Parlama (glow) efekti artık SADECE fiyat kutusunda kullanılıyor
+   (glow-altin-box, components/Vitrin.tsx üzerinde). glow-altin-text tanımı
+   geriye dönük uyumluluk için burada duruyor ama JSX içinde artık hiçbir
+   yerde referans edilmiyor — istenirse ileride tekrar kullanılabilir. */
 @keyframes glowPulse {
   0%, 100% {
     text-shadow: 0 0 8px rgba(251, 191, 36, 0.55), 0 0 18px rgba(251, 191, 36, 0.28);
@@ -67,4 +63,19 @@ html, body {
 }
 .glow-altin-box {
   animation: glowPulseBox 3s ease-in-out infinite;
+}
+
+/* YENİ: Sabit (akmayan) altın/yaldız kenarlık — kartın arka planını (koyu
+   panel rengi #11151f) ve köşegen yönde koyu-açık-koyu altın geçişli
+   kenarlığı TEK seferde çiziyor (background-clip: padding-box + border-box
+   tekniği). Kullanım: sadece bu class'ı verin — ayrıca bg-vitrinpanel veya
+   rounded-2xl eklemenize gerek yok, ikisini de bu class zaten karşılıyor. */
+.altin-kenarlik {
+  border: 3px solid transparent;
+  border-radius: 1rem;
+  background-image:
+    linear-gradient(#11151f, #11151f),
+    linear-gradient(135deg, #7a5a1e, #f5d67a 35%, #fff6d6 50%, #f5d67a 65%, #7a5a1e);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }

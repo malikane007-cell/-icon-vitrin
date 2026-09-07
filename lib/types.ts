@@ -25,3 +25,14 @@ export type GoogleYorumYaniti = {
   yorumSayisi?: number | null;
   yorumlar?: { isim: string; yorum: string; puan: number }[];
 };
+
+// YENİ: Reklam alanı — admin panelinden görsel veya video olarak
+// eklenip/silinebilen, ekranda her ILAN_ARASI_REKLAM_SIKLIGI (bkz.
+// components/Vitrin.tsx) ilanda bir otomatik gösterilen reklam kayıtları.
+export type Reklam = {
+  id: string;
+  tur: "gorsel" | "video";
+  medya_url: string;
+  sure_saniye: number | null; // sadece "gorsel" türünde kullanılır — video kendi doğal süresini (onEnded) kullanır
+  sira: number;
+};

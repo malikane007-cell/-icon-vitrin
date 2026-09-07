@@ -10,7 +10,10 @@ const config: Config = {
       colors: {
         vitrinbg: "#0b0e17",
         vitrinpanel: "#11151f",
-        altin: "#fbbf24", // canlı/parlak "business sarı" (Tailwind amber-400)
+        // "Parlak altın" tonu — fiyat kutusu ve altın kenarlıklarla aynı
+        // aileden, önceki düz amber-400 (#fbbf24) yerine daha sıcak/canlı
+        // bir ton (kullanıcının onayladığı #b8860b→#ffd700 gradyanına yakın).
+        altin: "#f2b807",
       },
     },
   },

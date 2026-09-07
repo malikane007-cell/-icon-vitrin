@@ -1,5 +1,10 @@
 -- ICON Vitrin Ekranı - Supabase şeması
--- Bu dosyayı yeni Supabase projenizde: SQL Editor > New query içine yapıştırıp çalıştırın.
+-- Bu dosyayı Supabase projenizde: SQL Editor > New query içine yapıştırıp çalıştırın.
+-- NOT: Bu dosyayı daha önce çalıştırdıysanız "ilanlar", "ayarlar", "yorumlar"
+-- tabloları zaten var demektir — "create table if not exists" kullanıldığı
+-- için tekrar çalıştırmak güvenlidir, mevcut veriyi silmez/bozmaz. Sadece
+-- YENİ eklenen "reklamlar" tablosu ve storage bucket'ı bu çalıştırmada
+-- oluşacaktır.
 --
 -- GÜNCELLEME: İlanlar artık BURADAKİ "ilanlar" tablosundan değil, otomatik olarak
 -- iconilan.com'un kendi Supabase projesinden (gerçek fotoğraf/video dahil) çekiliyor
@@ -50,6 +55,18 @@ create table if not exists yorumlar (
   sira int not null default 0
 );
 
+-- YENİ: Reklamlar — admin panelinden görsel/video olarak eklenip
+-- silinebilen, TV ekranında her 10 ilanda bir otomatik gösterilen kayıtlar
+-- (bkz. components/Vitrin.tsx, ILAN_ARASI_REKLAM_SIKLIGI).
+create table if not exists reklamlar (
+  id uuid primary key default gen_random_uuid(),
+  tur text not null default 'gorsel' check (tur in ('gorsel', 'video')),
+  medya_url text not null,
+  sure_saniye int default 10, -- sadece görsel reklamlarda kullanılır, video kendi süresini kullanır
+  sira int not null default 0,
+  created_at timestamptz not null default now()
+);
+
 -- Örnek/başlangıç verisi (isteğe bağlı, dilerseniz silip kendi verinizi girin)
 insert into ayarlar (id, sirket_adi, telefon, website, instagram, ticker_metni)
 values (1, 'ICON', '551 598 35 82', 'akemlakburdur.com', '/akemlakburdur',
@@ -63,7 +80,25 @@ on conflict (id) do nothing;
 alter table ilanlar enable row level security;
 alter table ayarlar enable row level security;
 alter table yorumlar enable row level security;
+alter table reklamlar enable row level security;
 
 create policy "herkes_okuyabilir_ilanlar" on ilanlar for select using (true);
 create policy "herkes_okuyabilir_ayarlar" on ayarlar for select using (true);
 create policy "herkes_okuyabilir_yorumlar" on yorumlar for select using (true);
+create policy "herkes_okuyabilir_reklamlar" on reklamlar for select using (true);
+
+-- YENİ: Reklam görselleri/videoları için dosya deposu (Storage bucket).
+-- "public: true" ile herkes okuyabilir (TV ekranı bu dosyaları görüntüler);
+-- yazma işlemi zaten sadece admin panelinin sunucu tarafı (SUPABASE_SERVICE_ROLE_KEY
+-- ile, RLS'yi tamamen atlayarak) yaptığı için ayrı bir insert politikasına
+-- ihtiyaç yok, ama ileride anon/authenticated bir istemciden de yükleme
+-- yapılmak istenirse diye ekliyoruz.
+insert into storage.buckets (id, name, public)
+values ('reklamlar', 'reklamlar', true)
+on conflict (id) do nothing;
+
+create policy "herkes_reklam_dosyalarini_okuyabilir" on storage.objects
+  for select using (bucket_id = 'reklamlar');
+
+create policy "yetkili_reklam_dosyasi_yukleyebilir" on storage.objects
+  for insert with check (bucket_id = 'reklamlar');

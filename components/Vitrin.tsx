@@ -1,15 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/lib/supabase";
 import { getVitrinIlanlari, type OfisIlani } from "@/lib/iconilan-listings";
-import type { Ayarlar, GoogleYorumYaniti, Yorum } from "@/lib/types";
+import type { Ayarlar, GoogleYorumYaniti, Reklam, Yorum } from "@/lib/types";
 
 const ROTASYON_SURESI_MS = 18000; // her ilanda kalma süresi
 const FOTO_ROTASYON_MS = 5000; // videosu olmayan ilanlarda fotoğraf değişim süresi
 const ILAN_YENIDEN_CEKME_MS = 5 * 60 * 1000; // iconilan.com'dan veri tazeleme sıklığı
 const YORUM_YENIDEN_CEKME_MS = 30 * 60 * 1000; // Google yorumu tazeleme sıklığı
+const REKLAM_YENIDEN_CEKME_MS = 5 * 60 * 1000; // ayarlar/yorumlar/reklamlar tazeleme sıklığı
+
+// YENİ: Reklam arası akışı ayarları.
+const ILAN_ARASI_REKLAM_SIKLIGI = 10; // her N ilan gösteriminden sonra bir reklam arası açılır
+const GECIS_VIDEOSU_AZAMI_SURE_MS = 15000; // geçiş videosu bir şekilde bitmezse/oynamazsa yine de devam et
+
+// Kullanıcının onayladığı sabit (akmayan) altın/yaldız kenarlık ve fiyat
+// kutusu renkleri — bkz. app/globals.css .altin-kenarlik tanımıyla AYNI
+// gradyan (kenarlık burada JS tarafında da lazım oluyor: rozet çerçevesi
+// için inline style olarak).
+const ALTIN_KENARLIK_GRADIENT =
+  "linear-gradient(135deg, #7a5a1e, #f5d67a 35%, #fff6d6 50%, #f5d67a 65%, #7a5a1e)";
+const FIYAT_GRADIENT = "linear-gradient(135deg, #b8860b, #ffd700 50%, #b8860b)";
 
 function fiyatFormatla(ilan: OfisIlani) {
   if (ilan.fiyat == null) return "Fiyat için arayın";
@@ -31,6 +44,30 @@ const ISKAN_ETIKETLERI: Record<string, string> = {
   kiracili: "Kiracılı",
   mulk_sahibi: "Mülk Sahibi Oturuyor",
 };
+
+// YENİ: iconilan.com'daki ilan videoları YouTube üzerinden barındırılıyor
+// (video dosyası olarak değil, bir YouTube linki olarak geliyor) — bu yüzden
+// <video> etiketi yerine YouTube embed (iframe) kullanıyoruz. Desteklenen
+// link biçimleri: youtube.com/watch?v=..., youtu.be/..., youtube.com/embed/...,
+// youtube.com/shorts/... Tanınmayan bir link gelirse (örn. gerçekten bir
+// .mp4 dosya linki) null döner ve kod normal <video> etiketine geri düşer.
+function youtubeVideoId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "").replace(/^m\./, "");
+    if (host === "youtu.be") {
+      return u.pathname.slice(1).split("/")[0] || null;
+    }
+    if (host === "youtube.com") {
+      if (u.pathname === "/watch") return u.searchParams.get("v");
+      if (u.pathname.startsWith("/embed/")) return u.pathname.split("/embed/")[1]?.split("/")[0] || null;
+      if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/shorts/")[1]?.split("/")[0] || null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 // Tasarım sabit 1920x1080 üzerine yapılıyor, gerçek pencere/ekran boyutu ne
 // olursa olsun bu sabit "tuval" oranı bozulmadan ölçeklenip ortalanıyor.
@@ -120,6 +157,7 @@ export default function Vitrin() {
   const [ilanlar, setIlanlar] = useState<OfisIlani[]>([]);
   const [ayarlar, setAyarlar] = useState<Ayarlar | null>(null);
   const [yorumlar, setYorumlar] = useState<Yorum[]>([]);
+  const [reklamlar, setReklamlar] = useState<Reklam[]>([]);
   const [googleYorum, setGoogleYorum] = useState<GoogleYorumYaniti | null>(null);
   const [index, setIndex] = useState(0);
   const [fotoIndex, setFotoIndex] = useState(0);
@@ -127,6 +165,16 @@ export default function Vitrin() {
   const [fotoHata, setFotoHata] = useState(false);
   const [yorumIndex, setYorumIndex] = useState(0);
   const [saat, setSaat] = useState("");
+
+  // YENİ: Reklam arası akışı.
+  // "ilan"  = normal ilan gösterimi (varsayılan)
+  // "gecis" = reklamlardan hemen önce oynatılan sabit tanıtım videosu
+  // "reklam" = admin panelinden eklenen reklamlardan biri (görsel ya da video)
+  const [mod, setMod] = useState<"ilan" | "gecis" | "reklam">("ilan");
+  const [reklamIndex, setReklamIndex] = useState(0);
+  // Kaç ilan gösterildiğini SAYAN, render'ları tetiklemeyen bir sayaç —
+  // state değil ref, çünkü sadece zamanlayıcı içinde okunup yazılıyor.
+  const gosterilenIlanSayaciRef = useRef(0);
 
   // İlanlar — otomatik olarak iconilan.com'dan
   useEffect(() => {
@@ -139,17 +187,21 @@ export default function Vitrin() {
     return () => clearInterval(t);
   }, []);
 
-  // Şirket bilgileri + manuel yorum yedeği — kendi Supabase projemizden
+  // Şirket bilgileri + manuel yorum yedeği + reklamlar — kendi Supabase projemizden
   useEffect(() => {
     async function ayarlariCek() {
-      const [ayarRes, yorumRes] = await Promise.all([
+      const [ayarRes, yorumRes, reklamRes] = await Promise.all([
         supabase.from("ayarlar").select("*").eq("id", 1).maybeSingle(),
         supabase.from("yorumlar").select("*").order("sira", { ascending: true }),
+        supabase.from("reklamlar").select("*").order("sira", { ascending: true }),
       ]);
       if (ayarRes.data) setAyarlar(ayarRes.data as Ayarlar);
       if (yorumRes.data) setYorumlar(yorumRes.data as Yorum[]);
+      if (reklamRes.data) setReklamlar(reklamRes.data as Reklam[]);
     }
     ayarlariCek();
+    const t = setInterval(ayarlariCek, REKLAM_YENIDEN_CEKME_MS);
+    return () => clearInterval(t);
   }, []);
 
   // Google yorumları — otomatik (API key tanımlıysa); değilse yukarıdaki manuel veriye düşer
@@ -168,20 +220,65 @@ export default function Vitrin() {
     return () => clearInterval(t);
   }, []);
 
-  // İlanlar arası otomatik dönüş
+  // İlanlar arası otomatik dönüş — SADECE "ilan" modundayken çalışır.
+  // YENİ: Her ILAN_ARASI_REKLAM_SIKLIGI ilanda bir reklam arası açılması
+  // gerekiyorsa, ilan indeksini İLERLETMEDEN "gecis" moduna geçiyoruz —
+  // böylece reklam/geçiş bitip "ilan" moduna dönüldüğünde bir sonraki tur
+  // aynı ilandan bir sonrakine geçiyor, yani ilanlar KALDIĞI YERDEN devam
+  // ediyor (baştan başlamıyor).
   useEffect(() => {
-    if (ilanlar.length < 2) return;
+    if (ilanlar.length < 2 || mod !== "ilan") return;
     const donus = setInterval(() => {
+      gosterilenIlanSayaciRef.current += 1;
+      if (
+        reklamlar.length > 0 &&
+        gosterilenIlanSayaciRef.current % ILAN_ARASI_REKLAM_SIKLIGI === 0
+      ) {
+        setMod("gecis");
+        return;
+      }
       setIndex((onceki) => (onceki + 1) % ilanlar.length);
     }, ROTASYON_SURESI_MS);
     return () => clearInterval(donus);
-  }, [ilanlar.length]);
+  }, [ilanlar.length, mod, reklamlar.length]);
+
+  // YENİ: Geçiş videosu — kendi süresinde biterse <video onEnded> ile
+  // "reklam" moduna geçiyoruz; video herhangi bir sebeple bitmezse/oynamazsa
+  // akış kilitli kalmasın diye bir güvenlik zaman aşımı da koyuyoruz.
+  useEffect(() => {
+    if (mod !== "gecis") return;
+    const t = setTimeout(() => setMod("reklam"), GECIS_VIDEOSU_AZAMI_SURE_MS);
+    return () => clearTimeout(t);
+  }, [mod]);
+
+  // YENİ: Reklam gösterimi — görsel reklamlarda kendi süresi kadar
+  // (varsayılan 10sn, admin panelinden ayarlanabilir) bekleyip bir sonraki
+  // reklama/ilanlara dönüyoruz; video reklamlarda kendi doğal bitiş süresini
+  // (<video onEnded>) bekliyoruz. Her reklam arasında SIRADAKİ reklam
+  // gösteriliyor (reklamIndex ilerliyor), böylece birden çok reklam eklendiğinde
+  // zamanla hepsi sırayla dönmüş oluyor.
+  useEffect(() => {
+    if (mod !== "reklam") return;
+    if (reklamlar.length === 0) {
+      setMod("ilan");
+      return;
+    }
+    const guncelReklam = reklamlar[reklamIndex % reklamlar.length];
+    if (guncelReklam.tur === "video") return; // video kendi onEnded'i ile ilerleyecek
+    const sure = (guncelReklam.sure_saniye ?? 10) * 1000;
+    const t = setTimeout(() => {
+      setReklamIndex((i) => i + 1);
+      setMod("ilan");
+    }, sure);
+    return () => clearTimeout(t);
+  }, [mod, reklamIndex, reklamlar]);
 
   useEffect(() => {
     if (index >= ilanlar.length) setIndex(0);
   }, [ilanlar.length, index]);
 
   const guncel = ilanlar[index];
+  const youtubeId = guncel?.videoUrl ? youtubeVideoId(guncel.videoUrl) : null;
 
   // Videosu olmayan ilanlarda fotoğraflar arasında otomatik dönüş
   useEffect(() => {
@@ -251,6 +348,7 @@ export default function Vitrin() {
   }, [gYorumlar.length, yorumIndex]);
 
   const gosterilecekYorum = gYorumlar[yorumIndex];
+  const guncelReklam = reklamlar.length > 0 ? reklamlar[reklamIndex % reklamlar.length] : null;
 
   if (!guncel) {
     return (
@@ -279,164 +377,259 @@ export default function Vitrin() {
   return (
     <OlcekliCerceve>
     <div className="w-full h-full overflow-hidden flex flex-col bg-vitrinbg p-4 gap-3 text-white">
-      {/* ÜST BÖLÜM */}
-      <div className="flex-1 grid grid-cols-[320px_1fr_420px] gap-3 min-h-0">
-        {/* SOL PANEL */}
-        <div key={`sol-${guncel.id}`} className="bg-vitrinpanel rounded-2xl p-5 flex flex-col overflow-hidden animate-fadein">
-          <div className="flex items-center gap-3 mb-1">
-            {ayarlar?.logo_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={ayarlar.logo_url} alt={sirketAdi} className="h-12 w-12 object-contain shrink-0" />
+      {/* ÜST BÖLÜM — normal ilan görünümü ile reklam/geçiş görünümü AYNI
+          alanı paylaşıyor, ikisi arasında yumuşak bir opacity geçişi var.
+          Alt bölüm (diğer ilanlar + bize ulaşın) ve ticker BUNDAN HİÇ
+          ETKİLENMEZ, her zaman sabit kalır (aşağıda ayrı, bu div'in dışında). */}
+      <div className="flex-1 min-h-0 relative">
+        {/* NORMAL İLAN GÖRÜNÜMÜ */}
+        <div
+          className={`absolute inset-0 grid grid-cols-[320px_1fr_420px] gap-3 min-h-0 transition-opacity duration-700 ${
+            mod === "ilan" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          {/* SOL PANEL */}
+          <div key={`sol-${guncel.id}`} className="altin-kenarlik p-5 flex flex-col overflow-hidden animate-fadein">
+            <div className="flex items-center gap-3 mb-1">
+              {ayarlar?.logo_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ayarlar.logo_url} alt={sirketAdi} className="h-12 w-12 object-contain shrink-0 block" />
+              )}
+              <div className="text-4xl font-extrabold text-altin tracking-wide">
+                {sirketAdi}
+              </div>
+            </div>
+            <div className="h-px bg-white/10 my-3" />
+            <div className="text-2xl font-bold uppercase mb-4">
+              {guncel.durumEtiketi} {guncel.baslik}
+            </div>
+
+            <div className="flex flex-col gap-3 text-white/90 text-lg">
+              <Ozellik etiket={guncel.konum} />
+              {guncel.metrekare && <Ozellik etiket={`${guncel.metrekare} m²`} />}
+              {guncel.odaSayisi && <Ozellik etiket={guncel.odaSayisi} />}
+              {guncel.kat && <Ozellik etiket={guncel.kat} />}
+            </div>
+
+            {tumOzellikler.length > 0 && (
+              <div className="mt-4 min-h-0 overflow-hidden">
+                <div className="text-base font-bold text-altin mb-2">Öne Çıkan Özellikler</div>
+                <div className="flex flex-col gap-1.5 text-base">
+                  {tumOzellikler.map((etiket, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-altin/20 flex items-center justify-center text-altin text-xs shrink-0">
+                        ●
+                      </span>
+                      <span className="truncate">{etiket}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-            <div className="text-3xl font-extrabold text-altin tracking-wide glow-altin-text">
-              {sirketAdi}
+
+            {/* YENİ: "10 Yıllık Deneyim" rozeti fiyatın hemen üstünde, büyük
+                boyutta ve etrafında yuvarlak altın/yaldız çerçeveyle. */}
+            <div className="mt-auto pt-4 flex flex-col items-center gap-4">
+              <div className="rounded-full p-1 shrink-0" style={{ background: ALTIN_KENARLIK_GRADIENT }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/deneyim-rozeti.png"
+                  alt="10 Yıllık Deneyim"
+                  className="w-32 h-32 rounded-full object-cover block bg-vitrinbg"
+                />
+              </div>
+              <div
+                className="w-full font-extrabold text-4xl rounded-xl px-4 py-3 text-center glow-altin-box"
+                style={{ background: FIYAT_GRADIENT, color: "#1a1200" }}
+              >
+                {fiyatFormatla(guncel)}
+              </div>
             </div>
           </div>
-          <div className="h-px bg-white/10 my-3" />
-          <div className="text-lg font-bold uppercase mb-4">
-            {guncel.durumEtiketi} {guncel.baslik}
-          </div>
 
-          <div className="flex flex-col gap-3 text-white/90 text-[15px]">
-            <Ozellik etiket={guncel.konum} />
-            {guncel.metrekare && <Ozellik etiket={`${guncel.metrekare} m²`} />}
-            {guncel.odaSayisi && <Ozellik etiket={guncel.odaSayisi} />}
-            {guncel.kat && <Ozellik etiket={guncel.kat} />}
-          </div>
-
-          {tumOzellikler.length > 0 && (
-            <div className="mt-4 min-h-0 overflow-hidden">
-              <div className="text-sm font-bold text-altin mb-2">Öne Çıkan Özellikler</div>
-              <div className="flex flex-col gap-1.5 text-[13px]">
-                {tumOzellikler.map((etiket, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-altin/20 flex items-center justify-center text-altin text-[10px] shrink-0">
-                      ●
-                    </span>
-                    <span className="truncate">{etiket}</span>
-                  </div>
+          {/* ORTA - FOTOĞRAF / VİDEO (otomatik — video artık YouTube embed ile) */}
+          <div key={`orta-${guncel.id}`} className="rounded-2xl overflow-hidden relative bg-black animate-fadein">
+            {youtubeId && !videoHata ? (
+              // YouTube embed'i, konteynerin tam boyutunu "cover" gibi
+              // doldurabilmek için gerçek boyutundan büyük render edilip
+              // (178%) ortalanıp taşan kısmı overflow-hidden ile kırpılıyor —
+              // normal <video object-cover> davranışının YouTube iframe
+              // karşılığı.
+              <div className="absolute inset-0 overflow-hidden">
+                <iframe
+                  key={youtubeId}
+                  className="absolute top-1/2 left-1/2 w-[178%] h-[178%] -translate-x-1/2 -translate-y-1/2"
+                  style={{ pointerEvents: "none", border: 0 }}
+                  src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`}
+                  title={guncel.baslik}
+                  allow="autoplay; encrypted-media"
+                />
+              </div>
+            ) : guncel.videoUrl && !videoHata ? (
+              // Yedek: video linki YouTube değilse (gerçek bir .mp4 dosyasıysa) eski yöntem
+              <video
+                key={guncel.videoUrl}
+                className="w-full h-full object-cover block"
+                src={guncel.videoUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                onError={() => {
+                  console.warn("[Vitrin] Video yüklenemedi, fotoğrafa geçiliyor:", guncel.videoUrl);
+                  setVideoHata(true);
+                }}
+              />
+            ) : gosterilecekFoto && !fotoHata ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={gosterilecekFoto}
+                src={gosterilecekFoto}
+                alt={guncel.baslik}
+                className="w-full h-full object-cover block animate-fadein"
+                onError={() => {
+                  console.warn("[Vitrin] Fotoğraf yüklenemedi:", gosterilecekFoto);
+                  setFotoHata(true);
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white/40">
+                Görsel yok
+              </div>
+            )}
+            {!guncel.videoUrl && guncel.fotograflar.length > 1 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-full">
+                {guncel.fotograflar.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`w-2 h-2 rounded-full ${
+                      i === fotoIndex ? "bg-altin" : "bg-white/40"
+                    }`}
+                  />
                 ))}
               </div>
-            </div>
-          )}
-
-          <div className="mt-auto pt-4">
-            <div className="bg-altin text-black font-extrabold text-2xl rounded-xl px-4 py-3 text-center glow-altin-box">
-              {fiyatFormatla(guncel)}
-            </div>
+            )}
           </div>
-        </div>
 
-        {/* ORTA - FOTOĞRAF / VİDEO (otomatik) */}
-        <div key={`orta-${guncel.id}`} className="rounded-2xl overflow-hidden relative bg-black animate-fadein">
-          {guncel.videoUrl && !videoHata ? (
-            <video
-              key={guncel.videoUrl}
-              className="w-full h-full object-cover"
-              src={guncel.videoUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              onError={() => {
-                console.warn("[Vitrin] Video yüklenemedi, fotoğrafa geçiliyor:", guncel.videoUrl);
-                setVideoHata(true);
-              }}
-            />
-          ) : gosterilecekFoto && !fotoHata ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={gosterilecekFoto}
-              src={gosterilecekFoto}
-              alt={guncel.baslik}
-              className="w-full h-full object-cover animate-fadein"
-              onError={() => {
-                console.warn("[Vitrin] Fotoğraf yüklenemedi:", gosterilecekFoto);
-                setFotoHata(true);
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/40">
-              Görsel yok
-            </div>
-          )}
-          {!guncel.videoUrl && guncel.fotograflar.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-full">
-              {guncel.fotograflar.map((_, i) => (
-                <span
-                  key={i}
-                  className={`w-2 h-2 rounded-full ${
-                    i === fotoIndex ? "bg-altin" : "bg-white/40"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* SAĞ PANEL */}
-        <div className="flex flex-col gap-3 min-h-0">
-          <div className="bg-vitrinpanel rounded-2xl p-4 flex-1 min-h-0 overflow-hidden flex flex-col">
-            <div className="text-right text-[11px] font-bold text-white/60 uppercase tracking-wide mb-2">
-              Müşterilerimiz Ne Diyor?
-            </div>
-            <div className="grid grid-cols-[0.55fr_1.9fr] gap-4 items-stretch flex-1 min-h-0">
-              <div className="shrink-0">
-                <div className="text-2xl font-bold leading-none mb-2">
-                  <span style={{ color: "#4285F4" }}>G</span>
-                  <span style={{ color: "#EA4335" }}>o</span>
-                  <span style={{ color: "#FBBC05" }}>o</span>
-                  <span style={{ color: "#4285F4" }}>g</span>
-                  <span style={{ color: "#34A853" }}>l</span>
-                  <span style={{ color: "#EA4335" }}>e</span>
+          {/* SAĞ PANEL */}
+          <div className="flex flex-col gap-3 min-h-0">
+            <div className="altin-kenarlik p-4 flex-1 min-h-0 overflow-hidden flex flex-col">
+              {/* YENİ: Firma logosu (10 yıllık deneyim + iletişim bilgilerini
+                  zaten kendi içinde barındıran tek görsel) yorum kutusunun
+                  en üstünde, ortalı. */}
+              <div className="flex justify-center mb-3 shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/firma-logo.png" alt={sirketAdi} className="h-20 object-contain block" />
+              </div>
+              <div className="text-right text-sm font-bold text-white/60 uppercase tracking-wide mb-2">
+                Müşterilerimiz Ne Diyor?
+              </div>
+              <div className="grid grid-cols-[0.55fr_1.9fr] gap-4 items-stretch flex-1 min-h-0">
+                <div className="shrink-0">
+                  <div className="text-3xl font-bold leading-none mb-2">
+                    <span style={{ color: "#4285F4" }}>G</span>
+                    <span style={{ color: "#EA4335" }}>o</span>
+                    <span style={{ color: "#FBBC05" }}>o</span>
+                    <span style={{ color: "#4285F4" }}>g</span>
+                    <span style={{ color: "#34A853" }}>l</span>
+                    <span style={{ color: "#EA4335" }}>e</span>
+                  </div>
+                  {gPuan != null && (
+                    <div className="text-altin font-extrabold text-3xl leading-tight">
+                      {Number(gPuan).toFixed(1)}
+                      <div className="text-xl tracking-wider">★★★★★</div>
+                    </div>
+                  )}
+                  {gYorumSayisi != null && (
+                    <div className="text-white/60 text-sm mt-1">({gYorumSayisi}+ Yorum)</div>
+                  )}
                 </div>
-                {gPuan != null && (
-                  <div className="text-altin font-extrabold text-2xl leading-tight glow-altin-text">
-                    {Number(gPuan).toFixed(1)}
-                    <div className="text-lg tracking-wider">★★★★★</div>
+                {/* Google yorumları SADECE burada, puan bloğunun hemen
+                    yanında/altında gösteriliyor — ekranın başka hiçbir
+                    yerinde tekrar edilmiyor. */}
+                {gosterilecekYorum && (
+                  <div key={yorumIndex} className="bg-black/30 rounded-lg p-4 text-lg animate-fadein flex flex-col justify-center h-full overflow-hidden">
+                    <div className="text-altin text-3xl leading-none mb-1">&ldquo;</div>
+                    <div className="text-white/80 italic line-clamp-5 leading-relaxed">{gosterilecekYorum.yorum}</div>
+                    <div className="text-altin mt-2 font-semibold text-lg">— {gosterilecekYorum.isim}</div>
+                    <div className="text-altin text-lg tracking-wider">★★★★★</div>
                   </div>
                 )}
-                {gYorumSayisi != null && (
-                  <div className="text-white/60 text-xs mt-1">({gYorumSayisi}+ Yorum)</div>
-                )}
               </div>
-              {gosterilecekYorum && (
-                <div key={yorumIndex} className="bg-black/30 rounded-lg p-4 text-base animate-fadein flex flex-col justify-center h-full overflow-hidden">
-                  <div className="text-altin text-2xl leading-none mb-1 glow-altin-text">&ldquo;</div>
-                  <div className="text-white/80 italic line-clamp-5 leading-relaxed">{gosterilecekYorum.yorum}</div>
-                  <div className="text-altin mt-2 font-semibold">— {gosterilecekYorum.isim}</div>
-                  <div className="text-altin text-sm tracking-wider glow-altin-text">★★★★★</div>
-                </div>
-              )}
             </div>
-          </div>
 
-          <div className="bg-vitrinpanel rounded-2xl p-4 flex items-center gap-4 shrink-0">
-            <div className="flex-1">
-              <div className="font-bold mb-1">Bu İlanın Detayları</div>
-              <div className="text-white/60 text-xs">
-                iconilan.com&apos;daki ilan sayfası için QR kodu okutun.
+            <div className="altin-kenarlik p-4 flex items-center gap-4 shrink-0">
+              <div className="flex-1">
+                <div className="font-bold mb-1 text-lg">Bu İlanın Detayları</div>
+                <div className="text-white/60 text-sm">
+                  iconilan.com&apos;daki ilan sayfası için QR kodu okutun.
+                </div>
+              </div>
+              <div className="bg-white p-2 rounded-lg">
+                <QRCodeSVG value={qrDeger} size={72} />
               </div>
             </div>
-            <div className="bg-white p-2 rounded-lg">
-              <QRCodeSVG value={qrDeger} size={72} />
-            </div>
           </div>
+        </div>
+
+        {/* YENİ: REKLAM / GEÇİŞ ALANI — normal ilan görünümüyle TAM AYNI yeri
+            kaplıyor, sadece opacity ile görünür/gizlenir. Üst bölümdeki
+            değişen TEK kısım burasıdır; alt bölüme ve ticker'a hiç dokunmaz. */}
+        <div
+          className={`absolute inset-0 rounded-2xl overflow-hidden bg-black transition-opacity duration-700 ${
+            mod !== "ilan" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          {mod === "gecis" && (
+            <video
+              key="gecis-videosu"
+              className="w-full h-full object-cover block"
+              src="/reklam-gecis-video.mp4"
+              autoPlay
+              muted
+              playsInline
+              onEnded={() => setMod("reklam")}
+            />
+          )}
+          {mod === "reklam" && guncelReklam && (
+            guncelReklam.tur === "video" ? (
+              <video
+                key={guncelReklam.id}
+                className="w-full h-full object-cover block"
+                src={guncelReklam.medya_url}
+                autoPlay
+                muted
+                playsInline
+                onEnded={() => {
+                  setReklamIndex((i) => i + 1);
+                  setMod("ilan");
+                }}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={guncelReklam.id}
+                src={guncelReklam.medya_url}
+                alt="Reklam"
+                className="w-full h-full object-cover block"
+              />
+            )
+          )}
         </div>
       </div>
 
-      {/* ALT BÖLÜM */}
+      {/* ALT BÖLÜM — HER ZAMAN SABİT, reklam/geçiş modundan hiç etkilenmez */}
       <div className="h-[150px] grid grid-cols-[1.4fr_1fr] gap-3">
-        <div className="bg-vitrinpanel rounded-2xl p-4 flex flex-col">
-          <div className="font-bold mb-2 text-altin">Diğer Öne Çıkan İlanlar</div>
+        <div className="altin-kenarlik p-4 flex flex-col">
+          <div className="font-bold mb-2 text-altin text-lg">Diğer Öne Çıkan İlanlar</div>
           <div className="flex-1 grid grid-cols-2 gap-3">
             {digerIlanlar.map((d) => (
               <div key={d.id} className="flex gap-2 bg-black/30 rounded-lg overflow-hidden">
                 {d.fotograflar[0] && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={d.fotograflar[0]} alt={d.baslik} className="w-20 h-full object-cover" />
+                  <img src={d.fotograflar[0]} alt={d.baslik} className="w-20 h-full object-cover block shrink-0" />
                 )}
-                <div className="py-1 pr-2 text-xs flex flex-col justify-center">
+                <div className="py-1 pr-2 text-sm flex flex-col justify-center">
                   <div className="font-bold uppercase">
                     {d.durumEtiketi} {d.baslik}
                   </div>
@@ -445,49 +638,43 @@ export default function Vitrin() {
                     {d.metrekare ? `, ${d.metrekare} m²` : ""}
                   </div>
                   <div className="text-white/60">{d.konum}</div>
-                  <div className="text-altin font-bold glow-altin-text">{fiyatFormatla(d)}</div>
+                  <div className="text-altin font-bold">{fiyatFormatla(d)}</div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-vitrinpanel rounded-2xl p-3 h-full overflow-hidden flex flex-col justify-between">
+        <div className="altin-kenarlik p-3 h-full overflow-hidden flex flex-col justify-between">
           <div className="flex justify-between items-center">
             <div>
-              <div className="text-altin font-bold mb-0.5">Bize Ulaşın</div>
-              {ayarlar?.telefon && <div className="text-sm leading-tight">📞 {ayarlar.telefon}</div>}
-              {ayarlar?.website && <div className="text-sm leading-tight">🌐 {ayarlar.website}</div>}
-              {ayarlar?.instagram && <div className="text-sm leading-tight">📷 {ayarlar.instagram}</div>}
+              <div className="text-altin font-bold mb-0.5 text-lg">Bize Ulaşın</div>
+              {ayarlar?.telefon && <div className="text-base leading-tight">📞 {ayarlar.telefon}</div>}
+              {ayarlar?.website && <div className="text-base leading-tight">🌐 {ayarlar.website}</div>}
+              {ayarlar?.instagram && <div className="text-base leading-tight">📷 {ayarlar.instagram}</div>}
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/deneyim-rozeti.png"
-              alt="10 Yıllık Deneyim"
-              className="w-28 h-28 rounded-full object-cover shrink-0 ring-2 ring-altin/70 shadow-[0_0_16px_rgba(251,191,36,0.4)]"
-            />
           </div>
-          <div className="text-center italic text-white/70 text-[10px] leading-tight mt-0.5">
+          <div className="text-center italic text-white/70 text-xs leading-tight mt-0.5">
             Güveniniz en değerli referansımızdır. Teşekkür ederiz. ♡
           </div>
         </div>
       </div>
 
-      {/* TICKER */}
-      <div className="h-12 bg-red-600 rounded-xl flex items-center px-3 gap-3">
-        <span className="bg-white text-red-600 font-bold text-sm px-2 py-1 rounded">SON DAKİKA</span>
+      {/* TICKER — alan iki katına çıkarıldı (h-12 -> h-24), yazılar büyütüldü */}
+      <div className="h-24 bg-red-600 rounded-xl flex items-center px-4 gap-4">
+        <span className="bg-white text-red-600 font-bold text-xl px-3 py-2 rounded">SON DAKİKA</span>
         <div className="flex-1 overflow-hidden">
           <div
             className="inline-flex whitespace-nowrap animate-marquee"
             style={{ animationDuration: `${tickerSuresi}s` }}
           >
-            <span className="text-lg text-white font-bold pr-24">{tickerMetni}</span>
-            <span className="text-lg text-white font-bold pr-24" aria-hidden="true">
+            <span className="text-3xl text-white font-bold pr-24">{tickerMetni}</span>
+            <span className="text-3xl text-white font-bold pr-24" aria-hidden="true">
               {tickerMetni}
             </span>
           </div>
         </div>
-        <span className="text-sm text-white/90 font-mono">{saat}</span>
+        <span className="text-xl text-white/90 font-mono">{saat}</span>
       </div>
     </div>
     </OlcekliCerceve>
