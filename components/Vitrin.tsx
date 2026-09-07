@@ -404,16 +404,16 @@ export default function Vitrin() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={ayarlar.logo_url} alt={sirketAdi} className="h-12 w-12 object-contain shrink-0 block" />
               )}
-              <div className="text-4xl font-extrabold text-altin tracking-wide">
+              <div className="text-3xl font-extrabold text-altin tracking-wide leading-tight break-words">
                 {sirketAdi}
               </div>
             </div>
             <div className="h-px bg-white/10 my-3" />
-            <div className="text-2xl font-bold uppercase mb-4">
+            <div className="text-xl font-bold uppercase mb-4 leading-snug">
               {guncel.durumEtiketi} {guncel.baslik}
             </div>
 
-            <div className="flex flex-col gap-3 text-white/90 text-lg">
+            <div className="flex flex-col gap-3 text-white/90 text-base">
               <Ozellik etiket={guncel.konum} />
               {guncel.metrekare && <Ozellik etiket={`${guncel.metrekare} m²`} />}
               {guncel.odaSayisi && <Ozellik etiket={guncel.odaSayisi} />}
@@ -422,8 +422,8 @@ export default function Vitrin() {
 
             {tumOzellikler.length > 0 && (
               <div className="mt-4 min-h-0 overflow-hidden">
-                <div className="text-base font-bold text-altin mb-2">Öne Çıkan Özellikler</div>
-                <div className="flex flex-col gap-1.5 text-base">
+                <div className="text-sm font-bold text-altin mb-2">Öne Çıkan Özellikler</div>
+                <div className="flex flex-col gap-1.5 text-sm">
                   {tumOzellikler.map((etiket, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-altin/20 flex items-center justify-center text-altin text-xs shrink-0">
@@ -436,19 +436,19 @@ export default function Vitrin() {
               </div>
             )}
 
-            {/* YENİ: "10 Yıllık Deneyim" rozeti fiyatın hemen üstünde, büyük
-                boyutta ve etrafında yuvarlak altın/yaldız çerçeveyle. */}
-            <div className="mt-auto pt-4 flex flex-col items-center gap-4">
+            {/* "10 Yıllık Deneyim" rozeti fiyatın hemen üstünde, etrafında
+                yuvarlak altın/yaldız çerçeveyle — sol panele sığacak ölçüde. */}
+            <div className="mt-auto pt-4 flex flex-col items-center gap-3">
               <div className="rounded-full p-1 shrink-0" style={{ background: ALTIN_KENARLIK_GRADIENT }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/deneyim-rozeti.png"
                   alt="10 Yıllık Deneyim"
-                  className="w-32 h-32 rounded-full object-cover block bg-vitrinbg"
+                  className="w-24 h-24 rounded-full object-cover block bg-vitrinbg"
                 />
               </div>
               <div
-                className="w-full font-extrabold text-4xl rounded-xl px-4 py-3 text-center glow-altin-box"
+                className="w-full font-extrabold text-3xl rounded-xl px-4 py-3 text-center glow-altin-box"
                 style={{ background: FIYAT_GRADIENT, color: "#1a1200" }}
               >
                 {fiyatFormatla(guncel)}
@@ -523,13 +523,6 @@ export default function Vitrin() {
           {/* SAĞ PANEL */}
           <div className="flex flex-col gap-3 min-h-0">
             <div className="altin-kenarlik p-4 flex-1 min-h-0 overflow-hidden flex flex-col">
-              {/* YENİ: Firma logosu (10 yıllık deneyim + iletişim bilgilerini
-                  zaten kendi içinde barındıran tek görsel) yorum kutusunun
-                  en üstünde, ortalı. */}
-              <div className="flex justify-center mb-3 shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/firma-logo.png" alt={sirketAdi} className="h-20 object-contain block" />
-              </div>
               <div className="text-right text-sm font-bold text-white/60 uppercase tracking-wide mb-2">
                 Müşterilerimiz Ne Diyor?
               </div>
