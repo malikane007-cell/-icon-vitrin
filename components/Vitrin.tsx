@@ -168,6 +168,11 @@ export default function Vitrin() {
   const [index, setIndex] = useState(0);
   const [fotoIndex, setFotoIndex] = useState(0);
   const [videoHata, setVideoHata] = useState(false);
+  // Video "hata" (onError) vermeden de takılıp kalabiliyor (yavaş yükleme,
+  // buffer sorunu vb.) — bu ref, videonun gerçekten oynamaya başlayıp
+  // başlamadığını izlemek için kullanılıyor (aşağıdaki zaman aşımı efektiyle
+  // birlikte).
+  const videoOynadiRef = useRef(false);
   const [fotoHata, setFotoHata] = useState(false);
   const [yorumIndex, setYorumIndex] = useState(0);
   const [saat, setSaat] = useState("");
@@ -329,6 +334,23 @@ export default function Vitrin() {
 
   const guncel = ilanlar[index];
   const youtubeId = guncel?.videoUrl ? youtubeVideoId(guncel.videoUrl) : null;
+
+  // YENİ: Video (YouTube olmayan, doğrudan .mp4 yedeği) HATA vermeden de
+  // takılıp kalabiliyor — tarayıcı sadece "yükleniyor/donmuş" ikonu gösterip
+  // ekranda öylece kalıyordu. Bu güvenlik önlemi, video birkaç saniye içinde
+  // GERÇEKTEN oynamaya başlamazsa (onPlaying hiç tetiklenmezse) otomatik
+  // olarak fotoğrafa geçiyor.
+  useEffect(() => {
+    videoOynadiRef.current = false;
+    if (!guncel?.videoUrl || youtubeId) return; // sadece YouTube OLMAYAN <video> yedeği için geçerli
+    const t = setTimeout(() => {
+      if (!videoOynadiRef.current) {
+        console.warn("[Vitrin] Video zaman aşımına uğradı (takıldı), fotoğrafa geçiliyor.");
+        setVideoHata(true);
+      }
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [guncel?.id, guncel?.videoUrl, youtubeId]);
 
   // Videosu olmayan ilanlarda fotoğraflar arasında otomatik dönüş
   useEffect(() => {
@@ -522,6 +544,9 @@ export default function Vitrin() {
                 muted
                 loop
                 playsInline
+                onPlaying={() => {
+                  videoOynadiRef.current = true;
+                }}
                 onError={() => {
                   console.warn("[Vitrin] Video yüklenemedi, fotoğrafa geçiliyor:", guncel.videoUrl);
                   setVideoHata(true);
