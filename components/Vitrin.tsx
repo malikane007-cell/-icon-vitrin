@@ -556,7 +556,7 @@ export default function Vitrin() {
                     yanında/altında gösteriliyor — ekranın başka hiçbir
                     yerinde tekrar edilmiyor. */}
                 {gosterilecekYorum && (
-                  <div key={yorumIndex} className="bg-black/30 rounded-lg p-4 text-lg animate-fadein flex flex-col justify-center h-full overflow-hidden">
+                  <div key={yorumIndex} className="bg-black/30 rounded-lg p-4 text-lg animate-fadein flex flex-col justify-start h-full overflow-hidden">
                     <div className="text-altin text-3xl leading-none mb-1">&ldquo;</div>
                     <div className="text-white/80 italic line-clamp-5 leading-relaxed">{gosterilecekYorum.yorum}</div>
                     <div className="text-altin mt-2 font-semibold text-lg">— {gosterilecekYorum.isim}</div>
