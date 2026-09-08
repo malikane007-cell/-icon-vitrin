@@ -734,17 +734,42 @@ export default function Vitrin() {
             </div>
           </div>
 
-          <div className="altin-kenarlik p-1.5 h-full overflow-hidden">
-            {/* Kullanıcının hazırladığı özel "Bize Ulaşın" görseli — telefon,
-                website ve Instagram bilgisi görselin İÇİNDE hazır. Bu bilgiler
-                değişirse görselin (public/bize-ulasin.jpg) güncellenmesi gerekir,
-                admin panelinden otomatik güncellenmez. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/bize-ulasin.jpg"
-              alt="Bize Ulaşın"
-              className="w-full h-full object-contain object-right block rounded-lg"
-            />
+          <div className="altin-kenarlik p-3 h-full overflow-hidden flex items-center gap-3">
+            {/* Sol: başlık + telefon/web/instagram, her biri renkli ikon
+                dairesi içinde — dinamik (admin panelinden gelir). */}
+            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+              <div className="text-altin font-bold text-base mb-0.5">BİZE ULAŞIN</div>
+              {ayarlar?.telefon && (
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500/90 flex items-center justify-center text-xs shrink-0">📞</span>
+                  <span className="text-sm font-semibold truncate">{ayarlar.telefon}</span>
+                </div>
+              )}
+              {ayarlar?.website && (
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-sky-500/90 flex items-center justify-center text-xs shrink-0">🌐</span>
+                  <span className="text-sm font-semibold truncate">{ayarlar.website}</span>
+                </div>
+              )}
+              {ayarlar?.instagram && (
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-pink-500/90 flex items-center justify-center text-xs shrink-0">📷</span>
+                  <span className="text-sm font-semibold truncate">{ayarlar.instagram}</span>
+                </div>
+              )}
+            </div>
+            {/* Sağ: firma logosu (admin panelinden yüklenen), yuvarlak altın
+                çerçeveyle. Logo yüklenmemişse bu alan boş kalır. */}
+            {ayarlar?.logo_url && (
+              <div className="rounded-full p-0.5 shrink-0" style={{ background: ALTIN_KENARLIK_GRADIENT }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={ayarlar.logo_url}
+                  alt={sirketAdi}
+                  className="w-16 h-16 rounded-full object-cover block bg-vitrinbg"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -752,8 +777,14 @@ export default function Vitrin() {
       {/* TICKER — yükseklik biraz azaltıldı (h-24 -> h-16), hâlâ eski orijinal
           h-12'den büyük ama kullanıcı "çok büyük oluyor" dediği için ince bir
           orta nokta bulundu. */}
-      <div className="h-16 bg-red-600 rounded-xl flex items-center px-4 gap-4">
-        <span className="bg-white text-red-600 font-bold text-lg px-3 py-1.5 rounded">SON DAKİKA</span>
+      {/* TICKER — artık düz kırmızı değil, temanın koyu/lacivert zeminine ve
+          altın kenarlığına oturtuldu. "SON DAKİKA" rozeti dikkat çekmesi için
+          kırmızı kalıyor, geri kalan bant koyu zemin + altın çerçeve. */}
+      <div
+        className="h-16 rounded-xl flex items-center px-4 gap-4 border-2"
+        style={{ background: "#0d1220", borderColor: "#c9a24a" }}
+      >
+        <span className="bg-red-600 text-white font-bold text-lg px-3 py-1.5 rounded shrink-0">SON DAKİKA</span>
         <div className="flex-1 overflow-hidden">
           <div
             className="inline-flex whitespace-nowrap animate-marquee"
