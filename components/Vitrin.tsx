@@ -377,7 +377,7 @@ export default function Vitrin() {
     return () => clearInterval(t);
   }, []);
 
-  const DIGER_ILAN_SAYISI = 3; // "Diğer Öne Çıkan İlanlar" alanı genişletildiği için 2'den 3'e çıkarıldı
+  const DIGER_ILAN_SAYISI = 4; // "Diğer Öne Çıkan İlanlar" alanı Bize Ulaşın'a kadar uzatıldığı için 4'e çıkarıldı
 
   const digerIlanlar = useMemo(() => {
     if (ilanlar.length < 2) return [];
@@ -713,10 +713,10 @@ export default function Vitrin() {
           tamamen gizleniyor ki reklam alanı (yukarıdaki flex-1 kutu) bu
           boşalan alanı da kullanarak neredeyse tam ekran gösterilebilsin. */}
       {mod === "ilan" && (
-        <div className="h-[150px] grid grid-cols-[2.2fr_1fr] gap-3">
+        <div className="h-[150px] grid grid-cols-[1fr_auto] gap-3">
           <div className="altin-kenarlik p-4 flex flex-col">
             <div className="font-bold mb-2 text-altin text-lg">Diğer Öne Çıkan İlanlar</div>
-            <div className="flex-1 grid grid-cols-3 gap-3">
+            <div className="flex-1 grid grid-cols-4 gap-3">
               {digerIlanlar.map((d) => (
                 <div key={d.id} className="flex gap-2 bg-black/30 rounded-lg overflow-hidden">
                   {d.fotograflar[0] && (
