@@ -635,9 +635,10 @@ export default function Vitrin() {
           }`}
         >
           {mod === "gecis" && (
+            // object-contain: video hiçbir kenardan kırpılmadan TAMAMI gösterilir.
             <video
               key="gecis-videosu"
-              className="w-full h-full object-cover block"
+              className="w-full h-full object-contain block"
               src="/reklam-gecis-video.mp4"
               autoPlay
               muted
@@ -647,9 +648,10 @@ export default function Vitrin() {
           )}
           {mod === "reklam" && guncelReklam && (
             guncelReklam.tur === "video" ? (
+              // object-contain: video hiçbir kenardan kırpılmadan TAMAMI gösterilir.
               <video
                 key={guncelReklam.id}
-                className="w-full h-full object-cover block"
+                className="w-full h-full object-contain block"
                 src={guncelReklam.medya_url}
                 autoPlay
                 muted
@@ -660,7 +662,7 @@ export default function Vitrin() {
                 }}
               />
             ) : (
-              // Reklam GÖRSELLERİ object-contain ile gösteriliyor — object-cover
+              // Reklam GÖRSELLERİ de object-contain ile gösteriliyor — object-cover
               // kullanılsaydı, reklam görselinin oranı ekran oranından farklıysa
               // üst/alt kısımları (ör. logo, "1 ay ücretsiz" etiketi) kırpılıp
               // ekrandan taşıyormuş gibi görünüyordu. object-contain görselin
