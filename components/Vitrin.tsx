@@ -765,21 +765,23 @@ export default function Vitrin() {
         </div>
       )}
 
-      {/* TICKER — alan iki katına çıkarıldı (h-12 -> h-24), yazılar büyütüldü */}
-      <div className="h-24 bg-red-600 rounded-xl flex items-center px-4 gap-4">
-        <span className="bg-white text-red-600 font-bold text-xl px-3 py-2 rounded">SON DAKİKA</span>
+      {/* TICKER — yükseklik biraz azaltıldı (h-24 -> h-16), hâlâ eski orijinal
+          h-12'den büyük ama kullanıcı "çok büyük oluyor" dediği için ince bir
+          orta nokta bulundu. */}
+      <div className="h-16 bg-red-600 rounded-xl flex items-center px-4 gap-4">
+        <span className="bg-white text-red-600 font-bold text-lg px-3 py-1.5 rounded">SON DAKİKA</span>
         <div className="flex-1 overflow-hidden">
           <div
             className="inline-flex whitespace-nowrap animate-marquee"
             style={{ animationDuration: `${tickerSuresi}s` }}
           >
-            <span className="text-3xl text-white font-bold pr-24">{tickerMetni}</span>
-            <span className="text-3xl text-white font-bold pr-24" aria-hidden="true">
+            <span className="text-2xl text-white font-bold pr-24">{tickerMetni}</span>
+            <span className="text-2xl text-white font-bold pr-24" aria-hidden="true">
               {tickerMetni}
             </span>
           </div>
         </div>
-        <span className="text-xl text-white/90 font-mono">{saat}</span>
+        <span className="text-lg text-white/90 font-mono">{saat}</span>
       </div>
     </div>
     </OlcekliCerceve>
