@@ -508,10 +508,15 @@ export default function Vitrin() {
                 />
               </div>
             ) : guncel.videoUrl && !videoHata ? (
-              // Yedek: video linki YouTube değilse (gerçek bir .mp4 dosyasıysa) eski yöntem
+              // Yedek: video linki YouTube değilse (gerçek bir .mp4 dosyasıysa) eski yöntem.
+              // GÜNCELLEME: "absolute inset-0" eklendi — bazı videoların kendi
+              // en-boy oranına göre konteynerini büyütüp alttaki "Diğer Öne
+              // Çıkan İlanlar" kutusunu aşağı ittiği görüldü. absolute
+              // konumlandırma, videonun gerçek boyutunun ETRAFINDAKİ HİÇBİR
+              // KUTUYU asla etkileyememesini garanti eder.
               <video
                 key={guncel.videoUrl}
-                className="w-full h-full object-cover block"
+                className="absolute inset-0 w-full h-full object-cover block"
                 src={guncel.videoUrl}
                 autoPlay
                 muted
@@ -528,7 +533,7 @@ export default function Vitrin() {
                 key={gosterilecekFoto}
                 src={gosterilecekFoto}
                 alt={guncel.baslik}
-                className="w-full h-full object-cover block animate-fadein"
+                className="absolute inset-0 w-full h-full object-cover block animate-fadein"
                 onError={() => {
                   console.warn("[Vitrin] Fotoğraf yüklenemedi:", gosterilecekFoto);
                   setFotoHata(true);
