@@ -743,7 +743,7 @@ export default function Vitrin() {
             <img
               src="/bize-ulasin.jpg"
               alt="Bize Ulaşın"
-              className="w-full h-full object-cover block rounded-lg"
+              className="w-full h-full object-contain block rounded-lg"
             />
           </div>
         </div>
