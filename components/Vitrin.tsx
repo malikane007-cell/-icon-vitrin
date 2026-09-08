@@ -734,33 +734,17 @@ export default function Vitrin() {
             </div>
           </div>
 
-          <div className="altin-kenarlik p-3 h-full overflow-hidden flex flex-col justify-between gap-1.5">
-            <div>
-              <div className="text-altin font-bold mb-1.5 text-lg">Bize Ulaşın</div>
-              <div className="flex flex-col gap-1">
-                {ayarlar?.telefon && (
-                  <div className="flex items-center gap-2 bg-black/30 rounded-lg px-2.5 py-1.5">
-                    <span className="text-base">📞</span>
-                    <span className="text-sm font-medium">{ayarlar.telefon}</span>
-                  </div>
-                )}
-                {ayarlar?.website && (
-                  <div className="flex items-center gap-2 bg-black/30 rounded-lg px-2.5 py-1.5">
-                    <span className="text-base">🌐</span>
-                    <span className="text-sm font-medium">{ayarlar.website}</span>
-                  </div>
-                )}
-                {ayarlar?.instagram && (
-                  <div className="flex items-center gap-2 bg-black/30 rounded-lg px-2.5 py-1.5">
-                    <span className="text-base">📷</span>
-                    <span className="text-sm font-medium">{ayarlar.instagram}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="text-center italic text-white/70 text-xs leading-tight bg-blue-950/40 rounded-lg px-2 py-1.5">
-              Güveniniz en değerli referansımızdır. Teşekkür ederiz. ♡
-            </div>
+          <div className="altin-kenarlik p-1.5 h-full overflow-hidden">
+            {/* Kullanıcının hazırladığı özel "Bize Ulaşın" görseli — telefon,
+                website ve Instagram bilgisi görselin İÇİNDE hazır. Bu bilgiler
+                değişirse görselin (public/bize-ulasin.jpg) güncellenmesi gerekir,
+                admin panelinden otomatik güncellenmez. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/bize-ulasin.jpg"
+              alt="Bize Ulaşın"
+              className="w-full h-full object-cover block rounded-lg"
+            />
           </div>
         </div>
       )}
