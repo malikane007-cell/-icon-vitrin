@@ -377,10 +377,12 @@ export default function Vitrin() {
     return () => clearInterval(t);
   }, []);
 
+  const DIGER_ILAN_SAYISI = 3; // "Diğer Öne Çıkan İlanlar" alanı genişletildiği için 2'den 3'e çıkarıldı
+
   const digerIlanlar = useMemo(() => {
     if (ilanlar.length < 2) return [];
     const sonuc: OfisIlani[] = [];
-    for (let i = 1; sonuc.length < 2 && i < ilanlar.length; i++) {
+    for (let i = 1; sonuc.length < DIGER_ILAN_SAYISI && i < ilanlar.length; i++) {
       sonuc.push(ilanlar[(index + i) % ilanlar.length]);
     }
     return sonuc;
@@ -714,7 +716,7 @@ export default function Vitrin() {
         <div className="h-[150px] grid grid-cols-[2.2fr_1fr] gap-3">
           <div className="altin-kenarlik p-4 flex flex-col">
             <div className="font-bold mb-2 text-altin text-lg">Diğer Öne Çıkan İlanlar</div>
-            <div className="flex-1 grid grid-cols-2 gap-3">
+            <div className="flex-1 grid grid-cols-3 gap-3">
               {digerIlanlar.map((d) => (
                 <div key={d.id} className="flex gap-2 bg-black/30 rounded-lg overflow-hidden">
                   {d.fotograflar[0] && (
@@ -737,7 +739,7 @@ export default function Vitrin() {
             </div>
           </div>
 
-          <div className="altin-kenarlik p-1.5 h-full overflow-hidden flex items-center justify-end">
+          <div className="altin-kenarlik p-1.5 overflow-hidden flex items-center justify-end self-center justify-self-end">
             {/* Kullanıcının Gemini'de oluşturduğu özel "Bize Ulaşın" görseli.
                 Telefon/website/Instagram bilgisi görselin İÇİNDE hazır —
                 bu bilgiler değişirse görsel (public/bize-ulasin.png)
@@ -747,7 +749,7 @@ export default function Vitrin() {
             <img
               src="/bize-ulasin.png"
               alt="Bize Ulaşın"
-              className="max-w-full max-h-full object-contain block"
+              className="h-[136px] w-auto object-contain block"
             />
           </div>
         </div>
