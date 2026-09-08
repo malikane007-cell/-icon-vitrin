@@ -71,7 +71,7 @@ html, body {
    tekniği). Kullanım: sadece bu class'ı verin — ayrıca bg-vitrinpanel veya
    rounded-2xl eklemenize gerek yok, ikisini de bu class zaten karşılıyor. */
 .altin-kenarlik {
-  border: 3px solid transparent;
+  border: 5px solid transparent;
   border-radius: 1rem;
   background-image:
     linear-gradient(#11151f, #11151f),
