@@ -442,17 +442,9 @@ export default function Vitrin() {
               </div>
             )}
 
-            {/* "10 Yıllık Deneyim" rozeti fiyatın hemen üstünde, etrafında
-                yuvarlak altın/yaldız çerçeveyle — sol panele sığacak ölçüde. */}
-            <div className="mt-auto pt-4 flex flex-col items-center gap-3">
-              <div className="rounded-full p-1 shrink-0" style={{ background: ALTIN_KENARLIK_GRADIENT }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/deneyim-rozeti.png"
-                  alt="10 Yıllık Deneyim"
-                  className="w-24 h-24 rounded-full object-cover block bg-vitrinbg"
-                />
-              </div>
+            {/* Fiyat kutusu — rozet buradan kaldırıldı, artık QR kod
+                kutusunun üstünde daha büyük ve okunaklı gösteriliyor. */}
+            <div className="mt-auto pt-4">
               <div
                 className="w-full font-extrabold text-3xl rounded-xl px-4 py-3 text-center glow-altin-box"
                 style={{ background: FIYAT_GRADIENT, color: "#1a1200" }}
@@ -566,15 +558,29 @@ export default function Vitrin() {
               </div>
             </div>
 
-            <div className="altin-kenarlik p-4 flex items-center gap-4 shrink-0">
-              <div className="flex-1">
-                <div className="font-bold mb-1 text-lg">Bu İlanın Detayları</div>
-                <div className="text-white/60 text-sm">
-                  iconilan.com&apos;daki ilan sayfası için QR kodu okutun.
+            <div className="altin-kenarlik p-4 flex flex-col gap-3 shrink-0">
+              {/* Deneyim rozeti — büyük ve okunaklı, QR kutusuna DOKUNMADAN
+                  onun üstüne eklendi. */}
+              <div className="flex justify-center">
+                <div className="rounded-full p-1 shrink-0" style={{ background: ALTIN_KENARLIK_GRADIENT }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/deneyim-rozeti.png"
+                    alt="10 Yıllık Deneyim"
+                    className="w-40 h-40 rounded-full object-cover block bg-vitrinbg"
+                  />
                 </div>
               </div>
-              <div className="bg-white p-2 rounded-lg">
-                <QRCodeSVG value={qrDeger} size={72} />
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <div className="font-bold mb-1 text-lg">Bu İlanın Detayları</div>
+                  <div className="text-white/60 text-sm">
+                    iconilan.com&apos;daki ilan sayfası için QR kodu okutun.
+                  </div>
+                </div>
+                <div className="bg-white p-2 rounded-lg">
+                  <QRCodeSVG value={qrDeger} size={72} />
+                </div>
               </div>
             </div>
           </div>
@@ -631,47 +637,51 @@ export default function Vitrin() {
         </div>
       </div>
 
-      {/* ALT BÖLÜM — HER ZAMAN SABİT, reklam/geçiş modundan hiç etkilenmez */}
-      <div className="h-[150px] grid grid-cols-[1.4fr_1fr] gap-3">
-        <div className="altin-kenarlik p-4 flex flex-col">
-          <div className="font-bold mb-2 text-altin text-lg">Diğer Öne Çıkan İlanlar</div>
-          <div className="flex-1 grid grid-cols-2 gap-3">
-            {digerIlanlar.map((d) => (
-              <div key={d.id} className="flex gap-2 bg-black/30 rounded-lg overflow-hidden">
-                {d.fotograflar[0] && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={d.fotograflar[0]} alt={d.baslik} className="w-20 h-full object-cover block shrink-0" />
-                )}
-                <div className="py-1 pr-2 text-sm flex flex-col justify-center">
-                  <div className="font-bold uppercase">
-                    {d.durumEtiketi} {d.baslik}
+      {/* ALT BÖLÜM — SADECE "ilan" modunda görünür. Reklam/geçiş modunda
+          tamamen gizleniyor ki reklam alanı (yukarıdaki flex-1 kutu) bu
+          boşalan alanı da kullanarak neredeyse tam ekran gösterilebilsin. */}
+      {mod === "ilan" && (
+        <div className="h-[150px] grid grid-cols-[1.4fr_1fr] gap-3">
+          <div className="altin-kenarlik p-4 flex flex-col">
+            <div className="font-bold mb-2 text-altin text-lg">Diğer Öne Çıkan İlanlar</div>
+            <div className="flex-1 grid grid-cols-2 gap-3">
+              {digerIlanlar.map((d) => (
+                <div key={d.id} className="flex gap-2 bg-black/30 rounded-lg overflow-hidden">
+                  {d.fotograflar[0] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={d.fotograflar[0]} alt={d.baslik} className="w-20 h-full object-cover block shrink-0" />
+                  )}
+                  <div className="py-1 pr-2 text-sm flex flex-col justify-center">
+                    <div className="font-bold uppercase">
+                      {d.durumEtiketi} {d.baslik}
+                    </div>
+                    <div className="text-white/60">
+                      {d.odaSayisi ?? ""}
+                      {d.metrekare ? `, ${d.metrekare} m²` : ""}
+                    </div>
+                    <div className="text-white/60">{d.konum}</div>
+                    <div className="text-altin font-bold">{fiyatFormatla(d)}</div>
                   </div>
-                  <div className="text-white/60">
-                    {d.odaSayisi ?? ""}
-                    {d.metrekare ? `, ${d.metrekare} m²` : ""}
-                  </div>
-                  <div className="text-white/60">{d.konum}</div>
-                  <div className="text-altin font-bold">{fiyatFormatla(d)}</div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="altin-kenarlik p-3 h-full overflow-hidden flex flex-col justify-between">
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="text-altin font-bold mb-0.5 text-lg">Bize Ulaşın</div>
-              {ayarlar?.telefon && <div className="text-base leading-tight">📞 {ayarlar.telefon}</div>}
-              {ayarlar?.website && <div className="text-base leading-tight">🌐 {ayarlar.website}</div>}
-              {ayarlar?.instagram && <div className="text-base leading-tight">📷 {ayarlar.instagram}</div>}
+              ))}
             </div>
           </div>
-          <div className="text-center italic text-white/70 text-xs leading-tight mt-0.5">
-            Güveniniz en değerli referansımızdır. Teşekkür ederiz. ♡
+
+          <div className="altin-kenarlik p-3 h-full overflow-hidden flex flex-col justify-between">
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="text-altin font-bold mb-0.5 text-lg">Bize Ulaşın</div>
+                {ayarlar?.telefon && <div className="text-base leading-tight">📞 {ayarlar.telefon}</div>}
+                {ayarlar?.website && <div className="text-base leading-tight">🌐 {ayarlar.website}</div>}
+                {ayarlar?.instagram && <div className="text-base leading-tight">📷 {ayarlar.instagram}</div>}
+              </div>
+            </div>
+            <div className="text-center italic text-white/70 text-xs leading-tight mt-0.5">
+              Güveniniz en değerli referansımızdır. Teşekkür ederiz. ♡
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* TICKER — alan iki katına çıkarıldı (h-12 -> h-24), yazılar büyütüldü */}
       <div className="h-24 bg-red-600 rounded-xl flex items-center px-4 gap-4">
