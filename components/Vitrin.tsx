@@ -463,10 +463,13 @@ export default function Vitrin() {
           {/* SOL PANEL */}
           <div key={`sol-${guncel.id}`} className="altin-kenarlik p-5 flex flex-col overflow-hidden animate-fadein">
             <div className="flex flex-col items-center text-center gap-2 mb-1">
-              {/* Büyük sabit logo — kullanıcının hazırladığı yeni AK logosu.
-                  Eski küçük ayarlar.logo_url ikonu buradan kaldırıldı. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/firma-logo.png" alt={sirketAdi} className="w-24 h-24 object-contain block" />
+              {/* Büyük logo — panelin genişliğini kaplayan kare bir alan,
+                  arka planı sistemle (bg-vitrinbg) aynı, onaylanan önizlemeye
+                  göre uygulandı. */}
+              <div className="w-full aspect-square rounded-xl bg-vitrinbg overflow-hidden flex items-center justify-center shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/firma-logo.png" alt={sirketAdi} className="w-full h-full object-contain block" />
+              </div>
               <div className="text-2xl font-extrabold text-altin tracking-wide leading-tight break-words">
                 {sirketAdi}
               </div>
