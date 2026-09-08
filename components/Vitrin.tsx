@@ -711,7 +711,7 @@ export default function Vitrin() {
           tamamen gizleniyor ki reklam alanı (yukarıdaki flex-1 kutu) bu
           boşalan alanı da kullanarak neredeyse tam ekran gösterilebilsin. */}
       {mod === "ilan" && (
-        <div className="h-[150px] grid grid-cols-[1.4fr_1fr] gap-3">
+        <div className="h-[150px] grid grid-cols-[2.2fr_1fr] gap-3">
           <div className="altin-kenarlik p-4 flex flex-col">
             <div className="font-bold mb-2 text-altin text-lg">Diğer Öne Çıkan İlanlar</div>
             <div className="flex-1 grid grid-cols-2 gap-3">
@@ -737,7 +737,7 @@ export default function Vitrin() {
             </div>
           </div>
 
-          <div className="altin-kenarlik p-1.5 h-full overflow-hidden flex items-center justify-center">
+          <div className="altin-kenarlik p-1.5 h-full overflow-hidden flex items-center justify-end">
             {/* Kullanıcının Gemini'de oluşturduğu özel "Bize Ulaşın" görseli.
                 Telefon/website/Instagram bilgisi görselin İÇİNDE hazır —
                 bu bilgiler değişirse görsel (public/bize-ulasin.png)
