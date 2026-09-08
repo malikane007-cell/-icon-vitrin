@@ -734,16 +734,31 @@ export default function Vitrin() {
             </div>
           </div>
 
-          <div className="altin-kenarlik p-3 h-full overflow-hidden flex flex-col justify-between">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="text-altin font-bold mb-0.5 text-lg">Bize Ulaşın</div>
-                {ayarlar?.telefon && <div className="text-base leading-tight">📞 {ayarlar.telefon}</div>}
-                {ayarlar?.website && <div className="text-base leading-tight">🌐 {ayarlar.website}</div>}
-                {ayarlar?.instagram && <div className="text-base leading-tight">📷 {ayarlar.instagram}</div>}
+          <div className="altin-kenarlik p-3 h-full overflow-hidden flex flex-col justify-between gap-1.5">
+            <div>
+              <div className="text-altin font-bold mb-1.5 text-lg">Bize Ulaşın</div>
+              <div className="flex flex-col gap-1">
+                {ayarlar?.telefon && (
+                  <div className="flex items-center gap-2 bg-black/30 rounded-lg px-2.5 py-1.5">
+                    <span className="text-base">📞</span>
+                    <span className="text-sm font-medium">{ayarlar.telefon}</span>
+                  </div>
+                )}
+                {ayarlar?.website && (
+                  <div className="flex items-center gap-2 bg-black/30 rounded-lg px-2.5 py-1.5">
+                    <span className="text-base">🌐</span>
+                    <span className="text-sm font-medium">{ayarlar.website}</span>
+                  </div>
+                )}
+                {ayarlar?.instagram && (
+                  <div className="flex items-center gap-2 bg-black/30 rounded-lg px-2.5 py-1.5">
+                    <span className="text-base">📷</span>
+                    <span className="text-sm font-medium">{ayarlar.instagram}</span>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="text-center italic text-white/70 text-xs leading-tight mt-0.5">
+            <div className="text-center italic text-white/70 text-xs leading-tight bg-blue-950/40 rounded-lg px-2 py-1.5">
               Güveniniz en değerli referansımızdır. Teşekkür ederiz. ♡
             </div>
           </div>
