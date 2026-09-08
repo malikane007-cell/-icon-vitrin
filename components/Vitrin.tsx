@@ -462,17 +462,17 @@ export default function Vitrin() {
         >
           {/* SOL PANEL */}
           <div key={`sol-${guncel.id}`} className="altin-kenarlik p-5 flex flex-col overflow-hidden animate-fadein">
-            <div className="flex flex-col items-center text-center gap-1 mb-1">
-              {ayarlar?.logo_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={ayarlar.logo_url} alt={sirketAdi} className="h-12 w-12 object-contain shrink-0 block" />
-              )}
-              <div className="text-3xl font-extrabold text-altin tracking-wide leading-tight break-words">
+            <div className="flex flex-col items-center text-center gap-2 mb-1">
+              {/* Büyük sabit logo — kullanıcının hazırladığı yeni AK logosu.
+                  Eski küçük ayarlar.logo_url ikonu buradan kaldırıldı. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/firma-logo.png" alt={sirketAdi} className="w-24 h-24 object-contain block" />
+              <div className="text-2xl font-extrabold text-altin tracking-wide leading-tight break-words">
                 {sirketAdi}
               </div>
             </div>
-            <div className="h-px bg-white/10 my-3" />
-            <div className="text-2xl font-bold uppercase mb-4 leading-snug">
+            <div className="h-px bg-white/10 my-2" />
+            <div className="text-xl font-bold uppercase mb-3 leading-snug">
               {guncel.durumEtiketi} {guncel.baslik}
             </div>
 
