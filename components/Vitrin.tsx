@@ -227,11 +227,15 @@ export default function Vitrin() {
   }, []);
 
   // İlanlar arası otomatik dönüş — SADECE "ilan" modundayken çalışır.
-  // GÜNCELLEME: Süre artık SABİT değil, ilana göre DİNAMİK hesaplanıyor —
-  // fotoğrafı çok olan bir ilanda (örn. 6 foto × 5sn = 30sn) hepsi bitmeden
-  // bir sonraki ilana geçilmiyordu, bu yüzden setInterval yerine her ilanın
-  // kendi süresine göre yeniden kurulan bir setTimeout kullanıyoruz.
-  // Video reklamı YENİ: Her ILAN_ARASI_REKLAM_SIKLIGI ilanda bir reklam arası
+  // Süre ilana göre DİNAMİK hesaplanıyor — fotoğrafı çok olan bir ilanda
+  // (örn. 6 foto × 5sn = 30sn) hepsi bitmeden bir sonraki ilana geçilmiyor.
+  // GÜNCELLEME: Video ilanlarda artık sabit süre TEK BAŞINA yeterli değil —
+  // video kısaysa (örn. 8sn) sabit süre dolana kadar defalarca baştan
+  // başlıyordu (loop). Şimdi YouTube'un "video bitti" postMessage sinyalini
+  // dinleyip video GERÇEKTEN bittiği anda ilerliyoruz; sinyal bir sebeple
+  // gelmezse (embed engellenmiş vb.) sabit süre yine de güvenlik amaçlı
+  // devreye giriyor.
+  // Video reklamı: Her ILAN_ARASI_REKLAM_SIKLIGI ilanda bir reklam arası
   // açılması gerekiyorsa, ilan indeksini İLERLETMEDEN "gecis" moduna
   // geçiyoruz — böylece reklam/geçiş bitip "ilan" moduna dönüldüğünde bir
   // sonraki tur aynı ilandan bir sonrakine geçiyor, yani ilanlar KALDIĞI
@@ -240,10 +244,11 @@ export default function Vitrin() {
     if (ilanlar.length < 2 || mod !== "ilan") return;
     const suGuncel = ilanlar[index];
     if (!suGuncel) return;
-    const sure = suGuncel.videoUrl
-      ? VIDEO_GOSTERIM_SURESI_MS
-      : Math.max(ROTASYON_SURESI_MS, Math.max(suGuncel.fotograflar.length, 1) * FOTO_ROTASYON_MS);
-    const zamanlayici = setTimeout(() => {
+
+    let ilerledi = false;
+    function ilerle() {
+      if (ilerledi) return;
+      ilerledi = true;
       gosterilenIlanSayaciRef.current += 1;
       if (
         reklamlar.length > 0 &&
@@ -253,8 +258,38 @@ export default function Vitrin() {
         return;
       }
       setIndex((onceki) => (onceki + 1) % ilanlar.length);
-    }, sure);
-    return () => clearTimeout(zamanlayici);
+    }
+
+    const suYoutubeId = suGuncel.videoUrl ? youtubeVideoId(suGuncel.videoUrl) : null;
+
+    let mesajDinleyici: ((e: MessageEvent) => void) | null = null;
+    if (suYoutubeId) {
+      mesajDinleyici = (e: MessageEvent) => {
+        if (e.origin !== "https://www.youtube.com") return;
+        let veri: any;
+        try {
+          veri = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        } catch {
+          return;
+        }
+        // YouTube IFrame API: onStateChange event'inde info === 0 videonun
+        // BİTTİĞİ anlamına gelir.
+        if (veri?.event === "onStateChange" && veri?.info === 0) {
+          ilerle();
+        }
+      };
+      window.addEventListener("message", mesajDinleyici);
+    }
+
+    const sure = suGuncel.videoUrl
+      ? VIDEO_GOSTERIM_SURESI_MS
+      : Math.max(ROTASYON_SURESI_MS, Math.max(suGuncel.fotograflar.length, 1) * FOTO_ROTASYON_MS);
+    const zamanlayici = setTimeout(ilerle, sure);
+
+    return () => {
+      clearTimeout(zamanlayici);
+      if (mesajDinleyici) window.removeEventListener("message", mesajDinleyici);
+    };
   }, [ilanlar, index, mod, reklamlar.length]);
 
   // YENİ: Geçiş videosu — kendi süresinde biterse <video onEnded> ile
@@ -391,7 +426,7 @@ export default function Vitrin() {
 
   return (
     <OlcekliCerceve>
-    <div className="w-full h-full overflow-hidden flex flex-col bg-vitrinbg p-4 gap-3 text-white">
+    <div className="w-full h-full overflow-hidden flex flex-col bg-vitrinbg p-4 gap-4 text-white">
       {/* ÜST BÖLÜM — normal ilan görünümü ile reklam/geçiş görünümü AYNI
           alanı paylaşıyor, ikisi arasında yumuşak bir opacity geçişi var.
           Alt bölüm (diğer ilanlar + bize ulaşın) ve ticker BUNDAN HİÇ
@@ -405,7 +440,7 @@ export default function Vitrin() {
         >
           {/* SOL PANEL */}
           <div key={`sol-${guncel.id}`} className="altin-kenarlik p-5 flex flex-col overflow-hidden animate-fadein">
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex flex-col items-center text-center gap-1 mb-1">
               {ayarlar?.logo_url && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={ayarlar.logo_url} alt={sirketAdi} className="h-12 w-12 object-contain shrink-0 block" />
@@ -415,11 +450,11 @@ export default function Vitrin() {
               </div>
             </div>
             <div className="h-px bg-white/10 my-3" />
-            <div className="text-xl font-bold uppercase mb-4 leading-snug">
+            <div className="text-2xl font-bold uppercase mb-4 leading-snug">
               {guncel.durumEtiketi} {guncel.baslik}
             </div>
 
-            <div className="flex flex-col gap-3 text-white/90 text-base">
+            <div className="flex flex-col gap-3 text-white/90 text-lg">
               <Ozellik etiket={guncel.konum} />
               {guncel.metrekare && <Ozellik etiket={`${guncel.metrekare} m²`} />}
               {guncel.odaSayisi && <Ozellik etiket={guncel.odaSayisi} />}
@@ -428,8 +463,8 @@ export default function Vitrin() {
 
             {tumOzellikler.length > 0 && (
               <div className="mt-4 min-h-0 overflow-hidden">
-                <div className="text-sm font-bold text-altin mb-2">Öne Çıkan Özellikler</div>
-                <div className="flex flex-col gap-1.5 text-sm">
+                <div className="text-base font-bold text-altin mb-2">Öne Çıkan Özellikler</div>
+                <div className="flex flex-col gap-1.5 text-base">
                   {tumOzellikler.map((etiket, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-altin/20 flex items-center justify-center text-altin text-xs shrink-0">
@@ -467,7 +502,7 @@ export default function Vitrin() {
                   key={youtubeId}
                   className="absolute top-1/2 left-1/2 w-[178%] h-[178%] -translate-x-1/2 -translate-y-1/2"
                   style={{ pointerEvents: "none", border: 0 }}
-                  src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&playsinline=1&fs=0`}
+                  src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&playsinline=1&fs=0&enablejsapi=1`}
                   title={guncel.baslik}
                   allow="autoplay; encrypted-media; picture-in-picture"
                 />
