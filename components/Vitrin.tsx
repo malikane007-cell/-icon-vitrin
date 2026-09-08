@@ -468,7 +468,7 @@ export default function Vitrin() {
                   göre uygulandı. */}
               <div className="w-full aspect-square rounded-xl bg-vitrinbg overflow-hidden flex items-center justify-center shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/firma-logo.png" alt={sirketAdi} className="w-full h-full object-contain block" />
+                <img src="/firma-logo.png" alt={sirketAdi} className="w-full h-full object-cover block" />
               </div>
               <div className="text-2xl font-extrabold text-altin tracking-wide leading-tight break-words">
                 {sirketAdi}
@@ -761,18 +761,6 @@ export default function Vitrin() {
                 </div>
               )}
             </div>
-            {/* Sağ: firma logosu (admin panelinden yüklenen), yuvarlak altın
-                çerçeveyle. Logo yüklenmemişse bu alan boş kalır. */}
-            {ayarlar?.logo_url && (
-              <div className="rounded-full p-0.5 shrink-0" style={{ background: ALTIN_KENARLIK_GRADIENT }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={ayarlar.logo_url}
-                  alt={sirketAdi}
-                  className="w-16 h-16 rounded-full object-cover block bg-vitrinbg"
-                />
-              </div>
-            )}
           </div>
         </div>
       )}
