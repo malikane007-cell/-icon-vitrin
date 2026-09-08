@@ -737,30 +737,18 @@ export default function Vitrin() {
             </div>
           </div>
 
-          <div className="altin-kenarlik p-3 h-full overflow-hidden flex items-center gap-3">
-            {/* Sol: başlık + telefon/web/instagram, her biri renkli ikon
-                dairesi içinde — dinamik (admin panelinden gelir). */}
-            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-              <div className="text-altin font-bold text-base mb-0.5">BİZE ULAŞIN</div>
-              {ayarlar?.telefon && (
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-emerald-500/90 flex items-center justify-center text-xs shrink-0">📞</span>
-                  <span className="text-sm font-semibold truncate">{ayarlar.telefon}</span>
-                </div>
-              )}
-              {ayarlar?.website && (
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-sky-500/90 flex items-center justify-center text-xs shrink-0">🌐</span>
-                  <span className="text-sm font-semibold truncate">{ayarlar.website}</span>
-                </div>
-              )}
-              {ayarlar?.instagram && (
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-pink-500/90 flex items-center justify-center text-xs shrink-0">📷</span>
-                  <span className="text-sm font-semibold truncate">{ayarlar.instagram}</span>
-                </div>
-              )}
-            </div>
+          <div className="altin-kenarlik p-1.5 h-full overflow-hidden flex items-center justify-center">
+            {/* Kullanıcının Gemini'de oluşturduğu özel "Bize Ulaşın" görseli.
+                Telefon/website/Instagram bilgisi görselin İÇİNDE hazır —
+                bu bilgiler değişirse görsel (public/bize-ulasin.png)
+                yeniden oluşturulup aynı isimle tekrar yüklenmeli, admin
+                panelinden otomatik güncellenmez. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/bize-ulasin.png"
+              alt="Bize Ulaşın"
+              className="max-w-full max-h-full object-contain block"
+            />
           </div>
         </div>
       )}
