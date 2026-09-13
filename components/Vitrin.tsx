@@ -19,7 +19,7 @@ const REKLAM_YENIDEN_CEKME_MS = 5 * 60 * 1000; // ayarlar/yorumlar/reklamlar taz
 // (YouTube API anahtarı olmadan) bilemediğimizden, çoğu kısa emlak
 // tanıtım videosunu kapsayacak kadar cömert sabit bir süre kullanıyoruz.
 const VIDEO_GOSTERIM_SURESI_MS = 45000;
-const ILAN_ARASI_REKLAM_SIKLIGI = 10; // her N ilan gösteriminden sonra bir reklam arası açılır
+const ILAN_ARASI_REKLAM_SIKLIGI = 5; // her N ilan gösteriminden sonra bir reklam arası açılır
 const GECIS_VIDEOSU_AZAMI_SURE_MS = 15000; // geçiş videosu bir şekilde bitmezse/oynamazsa yine de devam et
 
 // Kullanıcının onayladığı sabit (akmayan) altın/yaldız kenarlık ve fiyat
@@ -245,10 +245,11 @@ export default function Vitrin() {
   // gelmezse (embed engellenmiş vb.) sabit süre yine de güvenlik amaçlı
   // devreye giriyor.
   // Video reklamı: Her ILAN_ARASI_REKLAM_SIKLIGI ilanda bir reklam arası
-  // açılması gerekiyorsa, ilan indeksini İLERLETMEDEN "gecis" moduna
-  // geçiyoruz — böylece reklam/geçiş bitip "ilan" moduna dönüldüğünde bir
-  // sonraki tur aynı ilandan bir sonrakine geçiyor, yani ilanlar KALDIĞI
-  // YERDEN devam ediyor (baştan başlamıyor).
+  // açılması gerekiyorsa, ilan indeksi YİNE İLERLETİLİYOR (aşağıdaki ilerle()
+  // fonksiyonuna bkz.) — sadece bunun ÜSTÜNE "gecis" moduna da geçiliyor.
+  // Böylece reklam/geçiş bitip "ilan" moduna dönüldüğünde ekrana DOĞRUDAN
+  // sıradaki yeni ilan geliyor; az önce gösterilmiş olan ilan tekrar
+  // oynatılmıyor.
   useEffect(() => {
     if (ilanlar.length < 2 || mod !== "ilan") return;
     const suGuncel = ilanlar[index];
@@ -259,14 +260,24 @@ export default function Vitrin() {
       if (ilerledi) return;
       ilerledi = true;
       gosterilenIlanSayaciRef.current += 1;
-      if (
+      const reklamZamaniGeldi =
         reklamlar.length > 0 &&
-        gosterilenIlanSayaciRef.current % ILAN_ARASI_REKLAM_SIKLIGI === 0
-      ) {
-        setMod("gecis");
-        return;
-      }
+        gosterilenIlanSayaciRef.current % ILAN_ARASI_REKLAM_SIKLIGI === 0;
+      // ÖNEMLİ — DÜZELTME: İndeks artık HER durumda (reklam arası açılsa da
+      // açılmasa da) bir sonraki ilana ilerletiliyor. Eskiden reklam arası
+      // açıldığında indeks OLDUĞU YERDE bırakılıyordu ("ilerletmeden gecis
+      // moduna geçiyoruz") — niyet ilanların kaldığı yerden devam etmesiydi,
+      // ama pratikte reklam/geçiş videoları bitip "ilan" moduna dönüldüğünde
+      // indeks hâlâ AZ ÖNCE gösterilmiş olan ilanı gösterdiği için o ilan
+      // BAŞTAN SONA bir kez daha (ikinci kez arka arkaya) oynatılıyordu —
+      // "aynı ilan çok fazla tekrar geliyor" şikayetinin sebebi buydu. Artık
+      // indeks reklamdan ÖNCE ilerletiliyor; reklam/geçiş ekranı zaten "ilan"
+      // panelini görünmez yaptığı için (opacity 0) kullanıcı bu geçişi
+      // görmüyor, reklam bitince ekrana DOĞRUDAN bir sonraki (yeni) ilan geliyor.
       setIndex((onceki) => (onceki + 1) % ilanlar.length);
+      if (reklamZamaniGeldi) {
+        setMod("gecis");
+      }
     }
 
     const suYoutubeId = suGuncel.videoUrl ? youtubeVideoId(suGuncel.videoUrl) : null;
