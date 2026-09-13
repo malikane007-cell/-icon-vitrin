@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Ayarlar, Reklam, Yorum } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 
 export default function YonetimSayfasi() {
   const [oturumAcik, setOturumAcik] = useState<boolean | null>(null); // null = kontrol ediliyor
@@ -148,8 +149,18 @@ export default function YonetimSayfasi() {
     veriYukle();
   }
 
-  // YENİ: Reklam yükleme / silme — yorumlarla aynı mantık, tek fark dosya
-  // yüklemesi gerektiği için FormData kullanılması (logoYukle ile aynı desen).
+  // YENİ / DEĞİŞTİ: Reklam dosyası (özellikle video) artık kendi
+  // sunucumuza (Next.js API route) DEĞİL, doğrudan tarayıcıdan Supabase
+  // Storage'a yükleniyor. Eskiden dosya bizim /api/admin/reklam-yukle
+  // route'umuza gönderiliyordu, ama Vercel'in sunucusuz fonksiyonlarında
+  // ~4.5MB'lık, koddan ARTIRILAMAYAN bir istek gövdesi sınırı var — birkaç
+  // MB'ı geçen videolar "413 Payload Too Large" ile reddediliyordu (ve
+  // Vercel'in düz metin 413 yanıtı JSON olmadığı için res.json() de ikinci
+  // bir "Unexpected token" hatası veriyordu). Şimdi dosya doğrudan Supabase'e
+  // gidiyor (bucket'ın herkese açık yükleme politikası zaten
+  // supabase-schema.sql'de tanımlı), bizim route'umuza sadece oluşan küçük
+  // medya URL'i JSON olarak gönderiliyor — dosya hiç bizim sunucumuzdan
+  // geçmiyor, 413 riski tamamen ortadan kalkıyor.
   async function reklamYukle() {
     const dosya = reklamDosyaInputRef.current?.files?.[0];
     if (!dosya) {
@@ -158,21 +169,53 @@ export default function YonetimSayfasi() {
     }
     setReklamYukleniyor(true);
     setMesaj("Reklam yükleniyor...");
-    const formData = new FormData();
-    formData.append("reklam", dosya);
-    formData.append("tur", reklamTur);
-    if (reklamTur === "gorsel") {
-      formData.append("sure_saniye", String(reklamSure));
-    }
-    const res = await fetch("/api/admin/reklam-yukle", { method: "POST", body: formData });
-    const veri = await res.json();
-    setReklamYukleniyor(false);
-    if (res.ok) {
-      setMesaj("Reklam eklendi.");
-      if (reklamDosyaInputRef.current) reklamDosyaInputRef.current.value = "";
-      veriYukle();
-    } else {
-      setMesaj("Hata: " + (veri.hata ?? "bilinmiyor"));
+    try {
+      const uzanti = dosya.name.includes(".")
+        ? dosya.name.split(".").pop()
+        : reklamTur === "video"
+        ? "mp4"
+        : "jpg";
+      const dosyaAdi = `reklam-${Date.now()}.${uzanti}`;
+
+      const { error: yuklemeHata } = await supabase.storage
+        .from("reklamlar")
+        .upload(dosyaAdi, dosya, {
+          contentType: dosya.type || undefined,
+          upsert: true,
+        });
+      if (yuklemeHata) {
+        setMesaj("Hata: " + yuklemeHata.message);
+        return;
+      }
+
+      const { data: urlVeri } = supabase.storage.from("reklamlar").getPublicUrl(dosyaAdi);
+
+      const res = await fetch("/api/admin/reklam-yukle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tur: reklamTur,
+          medya_url: urlVeri.publicUrl,
+          sure_saniye: reklamTur === "gorsel" ? reklamSure : undefined,
+        }),
+      });
+      // Sunucu her zaman JSON dönse de, beklenmedik bir hata (ör. 413, 502)
+      // düz metin/HTML dönebilir — res.json() burada patlayıp ekranı
+      // "Uncaught SyntaxError" ile kilitlemesin diye önce metin okuyup
+      // sonra JSON'a çevirmeyi deniyoruz.
+      const metin = await res.text();
+      const veri = metin ? JSON.parse(metin) : {};
+      if (res.ok) {
+        setMesaj("Reklam eklendi.");
+        if (reklamDosyaInputRef.current) reklamDosyaInputRef.current.value = "";
+        veriYukle();
+      } else {
+        setMesaj("Hata: " + (veri.hata ?? `sunucu hatası (kod ${res.status})`));
+      }
+    } catch (e: any) {
+      setMesaj("Hata: " + (e?.message ?? "yükleme başarısız"));
+    } finally {
+      setReklamYukleniyor(false);
     }
   }
 
