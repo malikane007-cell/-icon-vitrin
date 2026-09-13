@@ -389,11 +389,11 @@ export default function YonetimSayfasi() {
         </div>
       </section>
 
-      {/* YENİ: REKLAMLAR — her 10 ilanda bir TV'de gösterilecek reklam
+      {/* YENİ: REKLAMLAR — her 5 ilanda bir TV'de gösterilecek reklam
           görselleri/videoları. Sınırsız sayıda eklenip silinebilir. */}
       <section className="bg-vitrinpanel rounded-2xl p-5 flex flex-col gap-3">
         <div className="font-bold text-lg mb-1">
-          Reklamlar (her 10 ilanda bir sırayla gösterilir)
+          Reklamlar (her 5 ilanda bir sırayla gösterilir)
         </div>
 
         {reklamlar.length === 0 && (

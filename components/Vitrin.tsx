@@ -21,6 +21,13 @@ const REKLAM_YENIDEN_CEKME_MS = 5 * 60 * 1000; // ayarlar/yorumlar/reklamlar taz
 const VIDEO_GOSTERIM_SURESI_MS = 45000;
 const ILAN_ARASI_REKLAM_SIKLIGI = 5; // her N ilan gösteriminden sonra bir reklam arası açılır
 const GECIS_VIDEOSU_AZAMI_SURE_MS = 15000; // geçiş videosu bir şekilde bitmezse/oynamazsa yine de devam et
+// YENİ: Video REKLAMLAR (admin panelinden yüklenen) için de aynı güvenlik
+// mantığı gerekiyordu — eskiden SADECE <video onEnded> bekleniyordu, video
+// bir sebeple (bozuk dosya, yavaş/takılan yükleme, tarayıcı engeli) hiç
+// bitmez/oynamazsa akış SONSUZA KADAR o reklamda TAKILI KALIYORDU (TV ekranı
+// donmuş gibi görünüyordu). Artık en fazla bu süre kadar bekleniyor, sonra
+// zorla bir sonraki adıma geçiliyor.
+const REKLAM_VIDEOSU_AZAMI_SURE_MS = 45000;
 
 // Kullanıcının onayladığı sabit (akmayan) altın/yaldız kenarlık ve fiyat
 // kutusu renkleri — bkz. app/globals.css .altin-kenarlik tanımıyla AYNI
@@ -347,7 +354,19 @@ export default function Vitrin() {
       return;
     }
     const guncelReklam = reklamlar[reklamIndex % reklamlar.length];
-    if (guncelReklam.tur === "video") return; // video kendi onEnded'i ile ilerleyecek
+    if (guncelReklam.tur === "video") {
+      // Video normalde kendi <video onEnded> sinyaliyle ilerliyor, ama
+      // bozuk bir dosya / takılan yükleme / tarayıcı autoplay engeli
+      // yüzünden bu sinyal hiç gelmeyebilir — bu durumda akış o reklamda
+      // SONSUZA KADAR kilitli kalmasın diye güvenlik amaçlı bir azami süre
+      // de koyuyoruz.
+      const t = setTimeout(() => {
+        console.warn("[Vitrin] Reklam videosu zaman aşımına uğradı (takıldı/oynamadı), atlanıyor.");
+        setReklamIndex((i) => i + 1);
+        setMod("gecisSonra");
+      }, REKLAM_VIDEOSU_AZAMI_SURE_MS);
+      return () => clearTimeout(t);
+    }
     const sure = (guncelReklam.sure_saniye ?? 10) * 1000;
     const t = setTimeout(() => {
       setReklamIndex((i) => i + 1);
@@ -694,6 +713,8 @@ export default function Vitrin() {
         >
           {mod === "gecis" && (
             // object-contain: video hiçbir kenardan kırpılmadan TAMAMI gösterilir.
+            // onError: dosya bozuk/yüklenemezse 15sn'lik güvenlik zaman aşımını
+            // beklemeden HEMEN bir sonraki adıma geç.
             <video
               key="gecis-videosu"
               className="w-full h-full object-contain block"
@@ -702,6 +723,7 @@ export default function Vitrin() {
               muted
               playsInline
               onEnded={() => setMod("reklam")}
+              onError={() => setMod("reklam")}
             />
           )}
           {mod === "gecisSonra" && (
@@ -715,11 +737,17 @@ export default function Vitrin() {
               muted
               playsInline
               onEnded={() => setMod("ilan")}
+              onError={() => setMod("ilan")}
             />
           )}
           {mod === "reklam" && guncelReklam && (
             guncelReklam.tur === "video" ? (
               // object-contain: video hiçbir kenardan kırpılmadan TAMAMI gösterilir.
+              // onError: video dosyası bozuk/oynatılamazsa 45sn'lik güvenlik
+              // zaman aşımını beklemeden HEMEN bir sonraki adıma geç — bkz.
+              // "bazı videoları kesiyor / hiç oynatmıyor" şikayeti: eskiden
+              // sadece onEnded'e güveniliyordu, video hiç oynamazsa (hata
+              // verse bile) ekran o reklamda donmuş gibi kalıyordu.
               <video
                 key={guncelReklam.id}
                 className="w-full h-full object-contain block"
@@ -728,6 +756,11 @@ export default function Vitrin() {
                 muted
                 playsInline
                 onEnded={() => {
+                  setReklamIndex((i) => i + 1);
+                  setMod("gecisSonra");
+                }}
+                onError={() => {
+                  console.warn("[Vitrin] Reklam videosu yüklenemedi/oynatılamadı, atlanıyor.");
                   setReklamIndex((i) => i + 1);
                   setMod("gecisSonra");
                 }}
