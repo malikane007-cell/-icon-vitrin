@@ -181,7 +181,10 @@ export default function Vitrin() {
   // "ilan"  = normal ilan gösterimi (varsayılan)
   // "gecis" = reklamlardan hemen önce oynatılan sabit tanıtım videosu
   // "reklam" = admin panelinden eklenen reklamlardan biri (görsel ya da video)
-  const [mod, setMod] = useState<"ilan" | "gecis" | "reklam">("ilan");
+  // "gecisSonra" = reklam(lar) bittikten HEMEN SONRA, ilan ekranına dönmeden
+  // önce AYNI tanıtım videosunun bir kez daha oynatıldığı kapanış aşaması —
+  // yani akış artık: ilan -> gecis (video) -> reklam -> gecisSonra (video) -> ilan
+  const [mod, setMod] = useState<"ilan" | "gecis" | "reklam" | "gecisSonra">("ilan");
   const [reklamIndex, setReklamIndex] = useState(0);
   // Kaç ilan gösterildiğini SAYAN, render'ları tetiklemeyen bir sayaç —
   // state değil ref, çünkü sadece zamanlayıcı içinde okunup yazılıyor.
@@ -298,25 +301,38 @@ export default function Vitrin() {
     };
   }, [ilanlar, index, mod, reklamlar.length]);
 
-  // YENİ: Geçiş videosu — kendi süresinde biterse <video onEnded> ile
-  // "reklam" moduna geçiyoruz; video herhangi bir sebeple bitmezse/oynamazsa
-  // akış kilitli kalmasın diye bir güvenlik zaman aşımı da koyuyoruz.
+  // YENİ: Geçiş videosu (reklamdan ÖNCE) — kendi süresinde biterse <video
+  // onEnded> ile "reklam" moduna geçiyoruz; video herhangi bir sebeple
+  // bitmezse/oynamazsa akış kilitli kalmasın diye bir güvenlik zaman aşımı
+  // da koyuyoruz.
   useEffect(() => {
     if (mod !== "gecis") return;
     const t = setTimeout(() => setMod("reklam"), GECIS_VIDEOSU_AZAMI_SURE_MS);
     return () => clearTimeout(t);
   }, [mod]);
 
+  // YENİ: Geçiş videosu (reklamdan SONRA) — reklam(lar) bittiğinde artık
+  // direkt ilana dönmek yerine aynı tanıtım videosunu bir kez daha oynatıp
+  // (kapanış/çıkış efekti gibi) ondan sonra ilana dönüyoruz. Aynı güvenlik
+  // zaman aşımı burada da geçerli.
+  useEffect(() => {
+    if (mod !== "gecisSonra") return;
+    const t = setTimeout(() => setMod("ilan"), GECIS_VIDEOSU_AZAMI_SURE_MS);
+    return () => clearTimeout(t);
+  }, [mod]);
+
   // YENİ: Reklam gösterimi — görsel reklamlarda kendi süresi kadar
-  // (varsayılan 10sn, admin panelinden ayarlanabilir) bekleyip bir sonraki
-  // reklama/ilanlara dönüyoruz; video reklamlarda kendi doğal bitiş süresini
+  // (varsayılan 10sn, admin panelinden ayarlanabilir) bekleyip kapanış
+  // geçiş videosuna geçiyoruz; video reklamlarda kendi doğal bitiş süresini
   // (<video onEnded>) bekliyoruz. Her reklam arasında SIRADAKİ reklam
   // gösteriliyor (reklamIndex ilerliyor), böylece birden çok reklam eklendiğinde
-  // zamanla hepsi sırayla dönmüş oluyor.
+  // zamanla hepsi sırayla dönmüş oluyor. Admin panelinde hiç reklam yoksa
+  // (liste boş) gösterecek bir şey olmadığından direkt kapanış videosuna
+  // geçip (ön video + kapanış videosu arka arkaya) ilana dönüyoruz.
   useEffect(() => {
     if (mod !== "reklam") return;
     if (reklamlar.length === 0) {
-      setMod("ilan");
+      setMod("gecisSonra");
       return;
     }
     const guncelReklam = reklamlar[reklamIndex % reklamlar.length];
@@ -324,7 +340,7 @@ export default function Vitrin() {
     const sure = (guncelReklam.sure_saniye ?? 10) * 1000;
     const t = setTimeout(() => {
       setReklamIndex((i) => i + 1);
-      setMod("ilan");
+      setMod("gecisSonra");
     }, sure);
     return () => clearTimeout(t);
   }, [mod, reklamIndex, reklamlar]);
@@ -677,6 +693,19 @@ export default function Vitrin() {
               onEnded={() => setMod("reklam")}
             />
           )}
+          {mod === "gecisSonra" && (
+            // Reklam(lar) bittikten sonraki KAPANIŞ videosu — aynı tanıtım
+            // videosu, ilana dönmeden hemen önce bir kez daha oynatılıyor.
+            <video
+              key="gecis-videosu-sonra"
+              className="w-full h-full object-contain block"
+              src="/reklam-gecis-video.mp4"
+              autoPlay
+              muted
+              playsInline
+              onEnded={() => setMod("ilan")}
+            />
+          )}
           {mod === "reklam" && guncelReklam && (
             guncelReklam.tur === "video" ? (
               // object-contain: video hiçbir kenardan kırpılmadan TAMAMI gösterilir.
@@ -689,7 +718,7 @@ export default function Vitrin() {
                 playsInline
                 onEnded={() => {
                   setReklamIndex((i) => i + 1);
-                  setMod("ilan");
+                  setMod("gecisSonra");
                 }}
               />
             ) : (
