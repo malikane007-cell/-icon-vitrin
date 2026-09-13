@@ -46,7 +46,10 @@ function konumMetni(neighborhood: string | null, district: string, city: string)
     .join(", ");
 }
 
-export async function getVitrinIlanlari(limit = 20): Promise<OfisIlani[]> {
+// limit verilmezse (ya da Infinity geçilirse) ofisin YAYINDAKİ TÜM ilanları
+// (satılık + kiralık) döner — vitrin ekranı artık hiçbir ilanı dışarıda
+// bırakmadan hepsini sırayla göstersin diye varsayılan sınırsız yapıldı.
+export async function getVitrinIlanlari(limit = Infinity): Promise<OfisIlani[]> {
   const { data, error } = await iconilanSupabase
     .from("listings")
     .select(

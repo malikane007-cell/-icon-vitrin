@@ -190,7 +190,8 @@ export default function Vitrin() {
   // İlanlar — otomatik olarak iconilan.com'dan
   useEffect(() => {
     async function ilanlariCek() {
-      const veri = await getVitrinIlanlari(20);
+      // Sınır yok — ofisin yayındaki TÜM satılık ve kiralık ilanları dönsün.
+      const veri = await getVitrinIlanlari(Infinity);
       setIlanlar(veri);
     }
     ilanlariCek();
